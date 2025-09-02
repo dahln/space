@@ -179,6 +179,19 @@ function drawExplosion(explosion) {
     ctx.restore();
 }
 
+let shipDestroyed = false;
+let shipRespawnTimer = 0;
+
+function drawShipExplosion() {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    let size = ship.radius * 4;
+    ctx.globalAlpha = 0.8;
+    ctx.drawImage(explosionImg, -size/2, -size/2, size, size);
+    ctx.globalAlpha = 1.0;
+    ctx.restore();
+}
+
 function updateShip() {
     if (keys.left) ship.angle -= 0.07;
     if (keys.right) ship.angle += 0.07;
@@ -279,11 +292,37 @@ function checkCollisions() {
                     alpha: 1.0,
                     frame: 0
                 });
-                // Spawn 2 new stations
-                stations.push(randomStationPos());
-                stations.push(randomStationPos());
+                // Spawn a new station with increased speed and fire rate
+                let newSpeed = stations[j].speed ? stations[j].speed + 0.5 : 2.0;
+                let newFireRate = stations[j].fireRate ? Math.max(20, stations[j].fireRate - 5) : Math.max(20, stationFireRate - 5);
+                let newStation = randomStationPos();
+                newStation.speed = newSpeed;
+                newStation.fireRate = newFireRate;
+                stations.push(newStation);
                 stations.splice(j, 1);
                 plasma.splice(i, 1);
+                break;
+            }
+        }
+    }
+    // Station shot vs Ship
+    if (!shipDestroyed) {
+        for (let i = stationShots.length - 1; i >= 0; i--) {
+            let dx = stationShots[i].x - ship.x;
+            let dy = stationShots[i].y - ship.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < ship.radius + stationShotRadius) {
+                // Ship explodes
+                shipDestroyed = true;
+                shipRespawnTimer = 120; // 2 seconds at 60fps
+                explosions.push({
+                    x: ship.x,
+                    y: ship.y,
+                    scale: 0.5,
+                    alpha: 1.0,
+                    frame: 0
+                });
+                stationShots.splice(i, 1);
                 break;
             }
         }
@@ -292,8 +331,8 @@ function checkCollisions() {
 
 function gameLoop() {
     drawBackground();
-    updateShip();
-    if (keys.space && !lastSpace) shootPlasma();
+    if (!shipDestroyed) updateShip();
+    if (!shipDestroyed && keys.space && !lastSpace) shootPlasma();
     lastSpace = keys.space;
     updatePlasma();
     updateStations();
@@ -308,7 +347,23 @@ function gameLoop() {
     // Draw explosions
     for (let explosion of explosions) drawExplosion(explosion);
     // Draw ship (always center)
-    drawShip(canvas.width / 2, canvas.height / 2, ship.angle);
+    if (!shipDestroyed) {
+        drawShip(canvas.width / 2, canvas.height / 2, ship.angle);
+    } else {
+        drawShipExplosion();
+        shipRespawnTimer--;
+        if (shipRespawnTimer <= 0) {
+            // Respawn ship at center
+            ship.x = 0;
+            ship.y = 0;
+            ship.vx = 0;
+            ship.vy = 0;
+            ship.angle = 0;
+            camera.x = 0;
+            camera.y = 0;
+            shipDestroyed = false;
+        }
+    }
     // Animate explosions
     for (let i = explosions.length - 1; i >= 0; i--) {
         explosions[i].scale += 0.12;

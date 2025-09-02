@@ -43,36 +43,72 @@ let keys = {
 
 // Plasma balls
 let plasma = [];
-const plasmaSpeed = 8;
+let plasmaSpeed = 8;
 const plasmaRadius = 4;
 // Load SVG for plasma bolt
 const plasmaImg = new Image();
 plasmaImg.src = 'plasma.svg';
 
-// Hostile stations
-function randomStationPos() {
-    // Place station randomly within a 2000x2000 area centered on the ship
-    const range = 1000;
-    return {
-        x: ship.x + (Math.random() - 0.5) * 2 * range,
-        y: ship.y + (Math.random() - 0.5) * 2 * range,
-        cooldown: 0,
-        speed: 1.5
-    };
-}
-let stations = [randomStationPos()];
-
-// Load SVG station image
+// Load SVG station image and station-related constants (moved up so functions that run at load can use them)
 const stationImg = new Image();
 stationImg.src = 'station.svg';
 const stationRadius = 30;
 const stationFireRate = 60; // frames
 let stationShots = [];
-const stationShotSpeed = 5;
+let stationShotSpeed = 5;
 const stationShotRadius = 5;
 // Load SVG for station shot
 const stationShotImg = new Image();
 stationShotImg.src = 'station-shot.svg';
+
+// Hostile stations
+// Level
+let level = 1;
+function updateLevelDisplay() {
+    const el = document.getElementById('levelDisplay');
+    if (el) el.textContent = `Level: ${level}`;
+}
+
+// Base values that are adjusted by level
+let globalStationBaseSpeed = 1.5;
+
+function applyLevelScaling() {
+    // Stations get noticeably faster each level
+    globalStationBaseSpeed = 1.2 + (level - 1) * 0.25;
+    // Station shots get faster with level
+    stationShotSpeed = 4 + (level - 1) * 0.5;
+    // Player plasma scales with level (so player firepower keeps pace)
+    plasmaSpeed = 7 + (level - 1) * 0.6;
+    // Ship handling slightly improves with level (small bump)
+    ship.thrust = 0.12 + (level - 1) * 0.015;
+    ship.maxSpeed = 6 + (level - 1) * 0.25;
+    // Update existing stations to match the new level scaling
+    for (let s of stations) {
+        s.speed = globalStationBaseSpeed + Math.random() * 0.5;
+        s.fireRate = Math.max(20, stationFireRate - Math.floor((level - 1) * 3));
+    }
+}
+
+function randomStationPos() {
+    // Place station randomly within a 2000x2000 area centered on the ship
+    const range = 1000;
+    let speed = globalStationBaseSpeed + Math.random() * 0.5;
+    // initial random direction
+    let ang = Math.random() * Math.PI * 2;
+    return {
+        x: ship.x + (Math.random() - 0.5) * 2 * range,
+        y: ship.y + (Math.random() - 0.5) * 2 * range,
+        cooldown: 0,
+        // base speed scales with level; add a small random variance
+        speed: speed,
+        // per-station velocity (used for wandering when player is dead)
+        vx: Math.cos(ang) * speed * 0.6,
+        vy: Math.sin(ang) * speed * 0.6,
+        // Fire rate decreases (faster firing) with level, clamped
+        fireRate: Math.max(20, stationFireRate - Math.floor((level - 1) * 3))
+    };
+}
+let stations = [randomStationPos()];
 
 // Load SVG explosion image
 const explosionImg = new Image();
@@ -241,17 +277,34 @@ function updatePlasma() {
 
 function updateStations() {
     for (let station of stations) {
-        // Move station toward player
+        // compute vector to player (safe even if player dead)
         let dx = ship.x - station.x;
         let dy = ship.y - station.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 1) {
-            station.x += (dx / dist) * station.speed;
-            station.y += (dy / dist) * station.speed;
+
+        if (!shipDestroyed) {
+            // Move station toward player
+            if (dist > 1) {
+                let nx = (dx / dist) * station.speed;
+                let ny = (dy / dist) * station.speed;
+                station.x += nx;
+                station.y += ny;
+                // update velocity so sudden player death will preserve movement direction
+                station.vx = nx;
+                station.vy = ny;
+            }
+        } else {
+            // Player dead -> stations wander in their own velocity
+            station.x += station.vx !== undefined ? station.vx : 0;
+            station.y += station.vy !== undefined ? station.vy : 0;
         }
+
         station.cooldown--;
-        // Fire at player
-        if (station.cooldown <= 0) {
+        // Fire at player only if player is alive and visible on screen
+        let shipScreenX = ship.x - camera.x;
+        let shipScreenY = ship.y - camera.y;
+        let shipVisible = shipScreenX >= -50 && shipScreenX <= canvas.width + 50 && shipScreenY >= -50 && shipScreenY <= canvas.height + 50;
+        if (!shipDestroyed && shipVisible && station.cooldown <= 0) {
             let angle = Math.atan2(dy, dx);
             stationShots.push({
                 x: station.x,
@@ -259,7 +312,7 @@ function updateStations() {
                 vx: Math.cos(angle) * stationShotSpeed,
                 vy: Math.sin(angle) * stationShotSpeed
             });
-            station.cooldown = stationFireRate;
+            station.cooldown = station.fireRate !== undefined ? station.fireRate : stationFireRate;
         }
     }
 }
@@ -292,15 +345,17 @@ function checkCollisions() {
                     alpha: 1.0,
                     frame: 0
                 });
-                // Spawn a new station with increased speed and fire rate
-                let newSpeed = stations[j].speed ? stations[j].speed + 0.5 : 2.0;
-                let newFireRate = stations[j].fireRate ? Math.max(20, stations[j].fireRate - 5) : Math.max(20, stationFireRate - 5);
+                // Spawn a new station using current level-based scaling
                 let newStation = randomStationPos();
-                newStation.speed = newSpeed;
-                newStation.fireRate = newFireRate;
+                newStation.speed = globalStationBaseSpeed + 0.3 + Math.random() * 0.5;
+                newStation.fireRate = Math.max(12, stationFireRate - Math.floor((level - 1) * 4));
                 stations.push(newStation);
                 stations.splice(j, 1);
                 plasma.splice(i, 1);
+                // level up
+                level++;
+                applyLevelScaling();
+                updateLevelDisplay();
                 break;
             }
         }
@@ -323,6 +378,17 @@ function checkCollisions() {
                     frame: 0
                 });
                 stationShots.splice(i, 1);
+                // level down
+                level = Math.max(1, level - 1);
+                applyLevelScaling();
+                updateLevelDisplay();
+                // Give all stations a random velocity so they wander in different directions while the player is dead
+                for (let s of stations) {
+                    let a = Math.random() * Math.PI * 2;
+                    let spd = s.speed || globalStationBaseSpeed;
+                    s.vx = Math.cos(a) * spd * (0.8 + Math.random() * 0.6);
+                    s.vy = Math.sin(a) * spd * (0.8 + Math.random() * 0.6);
+                }
                 break;
             }
         }
@@ -375,4 +441,7 @@ function gameLoop() {
     }
     requestAnimationFrame(gameLoop);
 }
-gameLoop();
+    // Initialize scaling for the starting level and update HUD
+    applyLevelScaling();
+    updateLevelDisplay();
+    gameLoop();

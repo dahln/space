@@ -93,14 +93,14 @@ function applyLevelScaling() {
 }
 
 function randomStationPos() {
-    // Place station randomly within a large world area (absolute coords)
-    const WORLD_HALF = 2500;
-    let speed = globalStationBaseSpeed + Math.random() * 0.5;
-    // initial random direction
+    // Place station randomly within 0-1 screen lengths from the player
+    const screenLen = Math.max(canvas.width, canvas.height) || 800;
+    let distFromPlayer = Math.random() * screenLen; // 0 .. 1 screen lengths
     let ang = Math.random() * Math.PI * 2;
+    let speed = globalStationBaseSpeed + Math.random() * 0.5;
     return {
-        x: (Math.random() - 0.5) * 2 * WORLD_HALF,
-        y: (Math.random() - 0.5) * 2 * WORLD_HALF,
+        x: ship.x + Math.cos(ang) * distFromPlayer,
+        y: ship.y + Math.sin(ang) * distFromPlayer,
         cooldown: 0,
         // base speed scales with level; add a small random variance
         speed: speed,

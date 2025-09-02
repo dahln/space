@@ -14,6 +14,10 @@ window.addEventListener('resize', resizeCanvas);
 const shipImg = new Image();
 shipImg.src = 'ship.svg';
 
+// Load SVG engine fire image
+const engineFireImg = new Image();
+engineFireImg.src = 'engine-fire.svg';
+
 // Ship state
 // Ship position is always at world coordinates (not canvas)
 let ship = {
@@ -85,6 +89,15 @@ function drawShip(x, y, angle) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
+    // Draw engine fire if moving forward
+    if (keys.up) {
+        // Fire is drawn at the rear (left side, negative X in ship's local space)
+    ctx.save();
+    ctx.translate(-36, 0); // move fire just a tad further back
+    ctx.rotate(-Math.PI / 2); // rotate fire to match ship orientation
+    ctx.drawImage(engineFireImg, -8, 8, 16, 24);
+    ctx.restore();
+    }
     ctx.drawImage(shipImg, -16, -16, 32, 32);
     ctx.restore();
 }

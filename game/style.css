@@ -2,10 +2,16 @@ body {
     background: #000;
     margin: 0;
     overflow: hidden;
+    width: 100vw;
+    height: 100vh;
 }
 #gameCanvas {
     display: block;
-    margin: 0 auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     background: #111;
     border: 2px solid #444;
 }

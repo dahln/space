@@ -2,8 +2,12 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const WIDTH = canvas.width;
-const HEIGHT = canvas.height;
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Ship pixel art (16x16)
 // Load SVG ship image
@@ -11,9 +15,10 @@ const shipImg = new Image();
 shipImg.src = 'ship.svg';
 
 // Ship state
+// Ship position is always at world coordinates (not canvas)
 let ship = {
-    x: WIDTH / 2,
-    y: HEIGHT / 2,
+    x: 0,
+    y: 0,
     angle: 0,
     velocity: 0,
     vx: 0,
@@ -121,16 +126,19 @@ function updateShip() {
         ship.vx *= ship.maxSpeed / speed;
         ship.vy *= ship.maxSpeed / speed;
     }
-    // Camera follows ship
-    camera.x += ship.vx;
-    camera.y += ship.vy;
+    // Move ship in world coordinates
+    ship.x += ship.vx;
+    ship.y += ship.vy;
+    // Camera centers on ship
+    camera.x = ship.x - canvas.width / 2;
+    camera.y = ship.y - canvas.height / 2;
 }
 
 function shootPlasma() {
     // Plasma should originate from the ship's current location in world space
     plasma.push({
-        x: camera.x + ship.x,
-        y: camera.y + ship.y,
+        x: ship.x,
+        y: ship.y,
         vx: Math.cos(ship.angle) * plasmaSpeed + ship.vx,
         vy: Math.sin(ship.angle) * plasmaSpeed + ship.vy
     });
@@ -144,8 +152,8 @@ function updatePlasma() {
     }
     // Remove offscreen
     plasma = plasma.filter(ball =>
-        ball.x > camera.x - 50 && ball.x < camera.x + WIDTH + 50 &&
-        ball.y > camera.y - 50 && ball.y < camera.y + HEIGHT + 50
+        ball.x > camera.x - 50 && ball.x < camera.x + canvas.width + 50 &&
+        ball.y > camera.y - 50 && ball.y < camera.y + canvas.height + 50
     );
 }
 
@@ -154,8 +162,8 @@ function updateStations() {
         station.cooldown--;
         // Fire at player
         if (station.cooldown <= 0) {
-            let dx = (ship.x + camera.x) - station.x;
-            let dy = (ship.y + camera.y) - station.y;
+            let dx = ship.x - station.x;
+            let dy = ship.y - station.y;
             let angle = Math.atan2(dy, dx);
             stationShots.push({
                 x: station.x,
@@ -175,8 +183,8 @@ function updateStationShots() {
     }
     // Remove offscreen
     stationShots = stationShots.filter(shot =>
-        shot.x > camera.x - 50 && shot.x < camera.x + WIDTH + 50 &&
-        shot.y > camera.y - 50 && shot.y < camera.y + HEIGHT + 50
+        shot.x > camera.x - 50 && shot.x < camera.x + canvas.width + 50 &&
+        shot.y > camera.y - 50 && shot.y < camera.y + canvas.height + 50
     );
 }
 
@@ -185,7 +193,7 @@ function checkCollisions() {
 }
 
 function gameLoop() {
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     updateShip();
     if (keys.space && !lastSpace) shootPlasma();
     lastSpace = keys.space;
@@ -200,7 +208,7 @@ function gameLoop() {
     // Draw plasma
     for (let ball of plasma) drawPlasma(ball);
     // Draw ship (always center)
-    drawShip(WIDTH / 2, HEIGHT / 2, ship.angle);
+    drawShip(canvas.width / 2, canvas.height / 2, ship.angle);
     requestAnimationFrame(gameLoop);
 }
 gameLoop();

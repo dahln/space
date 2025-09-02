@@ -279,6 +279,9 @@ function checkCollisions() {
                     alpha: 1.0,
                     frame: 0
                 });
+                // Spawn 2 new stations
+                stations.push(randomStationPos());
+                stations.push(randomStationPos());
                 stations.splice(j, 1);
                 plasma.splice(i, 1);
                 break;

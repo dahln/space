@@ -41,6 +41,9 @@ let keys = {
     space: false
 };
 
+// Pause state
+let paused = false;
+
 // Plasma balls
 let plasma = [];
 let plasmaSpeed = 8;
@@ -90,14 +93,14 @@ function applyLevelScaling() {
 }
 
 function randomStationPos() {
-    // Place station randomly within a 2000x2000 area centered on the ship
-    const range = 1000;
+    // Place station randomly within a large world area (absolute coords)
+    const WORLD_HALF = 2500;
     let speed = globalStationBaseSpeed + Math.random() * 0.5;
     // initial random direction
     let ang = Math.random() * Math.PI * 2;
     return {
-        x: ship.x + (Math.random() - 0.5) * 2 * range,
-        y: ship.y + (Math.random() - 0.5) * 2 * range,
+        x: (Math.random() - 0.5) * 2 * WORLD_HALF,
+        y: (Math.random() - 0.5) * 2 * WORLD_HALF,
         cooldown: 0,
         // base speed scales with level; add a small random variance
         speed: speed,
@@ -159,6 +162,11 @@ window.addEventListener('keydown', e => {
     if (e.code === 'ArrowLeft') keys.left = true;
     if (e.code === 'ArrowRight') keys.right = true;
     if (e.code === 'Space') keys.space = true;
+    if (e.code === 'Escape') {
+        paused = !paused;
+        // prevent default to avoid exiting full-screen or other browser actions
+        e.preventDefault();
+    }
 });
 window.addEventListener('keyup', e => {
     if (e.code === 'ArrowUp') keys.up = false;
@@ -283,15 +291,22 @@ function updateStations() {
         let dist = Math.sqrt(dx * dx + dy * dy);
 
         if (!shipDestroyed) {
-            // Move station toward player
+            // Move station toward player with smooth turning
             if (dist > 1) {
-                let nx = (dx / dist) * station.speed;
-                let ny = (dy / dist) * station.speed;
-                station.x += nx;
-                station.y += ny;
-                // update velocity so sudden player death will preserve movement direction
-                station.vx = nx;
-                station.vy = ny;
+                // desired velocity to point at player
+                let desiredVx = (dx / dist) * station.speed;
+                let desiredVy = (dy / dist) * station.speed;
+                // per-station turn smoothing (smaller -> slower turning, larger radius)
+                let turn = station.turnRate !== undefined ? station.turnRate : 0.12;
+                // ensure vx/vy exist
+                station.vx = station.vx !== undefined ? station.vx : desiredVx;
+                station.vy = station.vy !== undefined ? station.vy : desiredVy;
+                // smoothly approach desired velocity
+                station.vx += (desiredVx - station.vx) * turn;
+                station.vy += (desiredVy - station.vy) * turn;
+                // move by current velocity (smoothed)
+                station.x += station.vx;
+                station.y += station.vy;
             }
         } else {
             // Player dead -> stations wander in their own velocity
@@ -397,13 +412,18 @@ function checkCollisions() {
 
 function gameLoop() {
     drawBackground();
-    if (!shipDestroyed) updateShip();
-    if (!shipDestroyed && keys.space && !lastSpace) shootPlasma();
-    lastSpace = keys.space;
-    updatePlasma();
-    updateStations();
-    updateStationShots();
-    checkCollisions();
+    if (!paused) {
+        if (!shipDestroyed) updateShip();
+        if (!shipDestroyed && keys.space && !lastSpace) shootPlasma();
+        lastSpace = keys.space;
+        updatePlasma();
+        updateStations();
+        updateStationShots();
+        checkCollisions();
+    } else {
+        // keep input edge state consistent while paused
+        lastSpace = keys.space;
+    }
     // Draw stations
     for (let station of stations) drawStation(station);
     // Draw station shots
@@ -431,13 +451,28 @@ function gameLoop() {
         }
     }
     // Animate explosions
-    for (let i = explosions.length - 1; i >= 0; i--) {
-        explosions[i].scale += 0.12;
-        explosions[i].alpha -= 0.04;
-        explosions[i].frame++;
-        if (explosions[i].alpha <= 0) {
-            explosions.splice(i, 1);
+    if (!paused) {
+        for (let i = explosions.length - 1; i >= 0; i--) {
+            explosions[i].scale += 0.12;
+            explosions[i].alpha -= 0.04;
+            explosions[i].frame++;
+            if (explosions[i].alpha <= 0) {
+                explosions.splice(i, 1);
+            }
         }
+    }
+
+    // If paused, draw translucent overlay and text
+    if (paused) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '40px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+        ctx.restore();
     }
     requestAnimationFrame(gameLoop);
 }

@@ -312,11 +312,11 @@ let camera = { x: 0, y: 0 };
 // Instead of keeping all stars in memory we deterministically generate a small
 // set of stars per tiled cell around the camera using a hashed PRNG. This
 // makes the starfield appear infinite and stable as the camera/ship moves.
-const STAR_COLORS = ['#fff', '#bbf', '#88f', '#eef', '#ccf'];
-// Number of stars per tile cell (tune for density).
-const STARS_PER_CELL = 40;
-// Size of each tile in world pixels. Larger => fewer PRNG calls but coarser distribution.
-const STAR_TILE_SIZE = 800;
+const STAR_COLORS = ['#fff', '#f8fbff', '#dfe8ff', '#cfe6ff', '#e9f0ff'];
+// Number of stars per tile cell (higher => denser sky).
+const STARS_PER_CELL = 140;
+// Size of each tile in world pixels. Smaller => finer-grained distribution of stars.
+const STAR_TILE_SIZE = 300;
 
 // Simple integer hash to produce a deterministic seed from cell coords
 function cellSeed(cx, cy) {
@@ -366,19 +366,30 @@ function drawBackground() {
                 const worldX = cx * STAR_TILE_SIZE + localX;
                 const worldY = cy * STAR_TILE_SIZE + localY;
 
-                // small variation in radius and color
-                const r = 0.5 + rand() * 1.5;
+                // very fine variation in radius and color (shifted to very small stars)
+                // sizes ~0.08 .. 0.53 px; very-small stars are rendered as 1px squares for crispness
+                const r = 0.08 + rand() * 0.45;
                 const color = STAR_COLORS[Math.floor(rand() * STAR_COLORS.length)];
+                const alpha = 0.45 + rand() * 0.6;
 
                 const sx = worldX - camera.x;
                 const sy = worldY - camera.y;
                 if (sx >= -10 && sx <= canvas.width + 10 && sy >= -10 && sy <= canvas.height + 10) {
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, r, 0, Math.PI * 2);
-                    ctx.fillStyle = color;
-                    ctx.globalAlpha = 0.75;
-                    ctx.fill();
-                    ctx.globalAlpha = 1.0;
+                    // For very small visual sizes draw a single pixel aligned to the device grid so
+                    // stars appear crisp instead of blurry when using subpixel arc radii.
+                    if (r < 0.6) {
+                        ctx.fillStyle = color;
+                        ctx.globalAlpha = alpha;
+                        ctx.fillRect(Math.round(sx), Math.round(sy), 1, 1);
+                        ctx.globalAlpha = 1.0;
+                    } else {
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                        ctx.fillStyle = color;
+                        ctx.globalAlpha = alpha;
+                        ctx.fill();
+                        ctx.globalAlpha = 1.0;
+                    }
                 }
             }
         }

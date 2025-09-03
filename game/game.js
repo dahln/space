@@ -33,6 +33,9 @@ let ship = {
     maxSpeed: 6
 };
 
+// Remember where the ship was when it was destroyed so we can respawn there
+let savedShipPos = null;
+
 // Controls
 let keys = {
     up: false,
@@ -384,6 +387,8 @@ function checkCollisions() {
             if (dist < ship.radius + stationShotRadius) {
                 // Ship explodes
                 shipDestroyed = true;
+                // Save the ship's world position so we can respawn at the same place
+                savedShipPos = { x: ship.x, y: ship.y };
                 shipRespawnTimer = 120; // 2 seconds at 60fps
                 explosions.push({
                     x: ship.x,
@@ -439,15 +444,22 @@ function gameLoop() {
         drawShipExplosion();
         shipRespawnTimer--;
         if (shipRespawnTimer <= 0) {
-            // Respawn ship at center
-            ship.x = 0;
-            ship.y = 0;
-            ship.vx = 0;
-            ship.vy = 0;
-            ship.angle = 0;
-            camera.x = 0;
-            camera.y = 0;
-            shipDestroyed = false;
+                // Respawn ship at the same world position it had when destroyed
+                if (savedShipPos) {
+                    ship.x = savedShipPos.x;
+                    ship.y = savedShipPos.y;
+                } else {
+                    // fallback to origin if for some reason we don't have a saved position
+                    ship.x = 0;
+                    ship.y = 0;
+                }
+                // clear motion but keep orientation/camera consistent with the world
+                ship.vx = 0;
+                ship.vy = 0;
+                // Do NOT reset camera or recreate objects — keep everything active
+                shipDestroyed = false;
+                // clear saved position until next death
+                savedShipPos = null;
         }
     }
     // Animate explosions

@@ -13,9 +13,18 @@
     </div>
     <div id="hud">
         <div id="levelDisplay">Level: 1</div>
+        <div id="livesDisplay">Lives: 5</div>
         <button id="storyButton" aria-label="Read the story">The Story</button>
     </div>
     <canvas id="gameCanvas"></canvas>
+    <div id="gameOverOverlay" role="dialog" aria-hidden="true" style="display:none;">
+        <div class="overlay-content">
+            <h1>Game Over</h1>
+            <p>Your ship fades into the void — all lives are lost. Rise again and forge a new legend.</p>
+            <p>Press Enter or click Restart to play again.</p>
+            <button id="restartButton" class="overlay-button">Restart</button>
+        </div>
+    </div>
     <div id="muteButton" role="button" aria-label="Mute audio" title="Mute audio">🔊</div>
     <script src="game.js"></script>
     <script>

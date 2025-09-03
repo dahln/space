@@ -164,6 +164,14 @@ stationShotImg.src = 'station-shot.svg';
 // Hostile stations
 // Level
 let level = 1;
+// Lives: player starts with 5 lives
+let lives = 5;
+let gameOver = false;
+
+function updateLivesDisplay() {
+    const el = document.getElementById('livesDisplay');
+    if (el) el.textContent = `Lives: ${lives}`;
+}
 function updateLevelDisplay() {
     const el = document.getElementById('levelDisplay');
     if (el) el.textContent = `Level: ${level}`;
@@ -186,6 +194,26 @@ function applyLevelScaling() {
     for (let s of stations) {
         s.speed = globalStationBaseSpeed + Math.random() * 0.5;
         s.fireRate = Math.max(20, stationFireRate - Math.floor((level - 1) * 3));
+    }
+}
+
+function showGameOver() {
+    gameOver = true;
+    paused = true;
+    const overlay = document.getElementById('gameOverOverlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function hideGameOver() {
+    gameOver = false;
+    paused = false;
+    const overlay = document.getElementById('gameOverOverlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
     }
 }
 
@@ -701,6 +729,11 @@ function checkCollisions() {
                 plasma.splice(i, 1);
                 // level up
                 level++;
+                // Award extra lives every 5 levels (when hitting 5,10,15,...)
+                if (level % 5 === 0) {
+                    lives += 2;
+                    updateLivesDisplay();
+                }
                 applyLevelScaling();
                 updateLevelDisplay();
                 break;
@@ -739,6 +772,13 @@ function checkCollisions() {
                 level = Math.max(1, level - 1);
                 applyLevelScaling();
                 updateLevelDisplay();
+                // Decrement lives on player death and check for game over
+                lives = Math.max(0, lives - 1);
+                updateLivesDisplay();
+                if (lives <= 0) {
+                    // Show game over overlay and stop gameplay; do not schedule respawn
+                    showGameOver();
+                }
                 // Give all stations a random velocity so they wander in different directions while the player is dead
                 for (let s of stations) {
                     let a = Math.random() * Math.PI * 2;
@@ -794,24 +834,30 @@ function gameLoop() {
         drawShipExplosion();
         shipRespawnTimer--;
         if (shipRespawnTimer <= 0) {
-            // Respawn ship at the same world position it had when destroyed
-            if (savedShipPos) {
-                ship.x = savedShipPos.x;
-                ship.y = savedShipPos.y;
+            // If game over, don't respawn — wait for restart
+            if (gameOver) {
+                // keep shipDestroyed true so the ship remains exploded
+                shipRespawnTimer = 0;
             } else {
-                // fallback to origin if for some reason we don't have a saved position
-                ship.x = 0;
-                ship.y = 0;
+                // Respawn ship at the same world position it had when destroyed
+                if (savedShipPos) {
+                    ship.x = savedShipPos.x;
+                    ship.y = savedShipPos.y;
+                } else {
+                    // fallback to origin if for some reason we don't have a saved position
+                    ship.x = 0;
+                    ship.y = 0;
+                }
+                // clear motion but keep orientation/camera consistent with the world
+                ship.vx = 0;
+                ship.vy = 0;
+                // Start ship spawn phase (1 second = 60 frames)
+                ship.spawnTimer = 60;
+                // Do NOT reset camera or recreate objects — keep everything active
+                shipDestroyed = false;
+                // clear saved position until next death
+                savedShipPos = null;
             }
-            // clear motion but keep orientation/camera consistent with the world
-            ship.vx = 0;
-            ship.vy = 0;
-            // Start ship spawn phase (1 second = 60 frames)
-            ship.spawnTimer = 60;
-            // Do NOT reset camera or recreate objects — keep everything active
-            shipDestroyed = false;
-            // clear saved position until next death
-            savedShipPos = null;
         }
     }
     // Decrement ship spawn timer if active
@@ -854,4 +900,39 @@ function gameLoop() {
 // Initialize scaling for the starting level and update HUD
 applyLevelScaling();
 updateLevelDisplay();
+// Initialize lives display
+updateLivesDisplay();
+// Hook up restart button and Enter key (run now if DOM already parsed)
+function _attachRestartHandlers() {
+    const restart = document.getElementById('restartButton');
+    if (restart) restart.addEventListener('click', () => {
+        // Reset minimal game state: lives, level, stations, explosions, plasma, sounds
+        lives = 5;
+        updateLivesDisplay();
+        level = 1;
+        applyLevelScaling();
+        updateLevelDisplay();
+        stations = [randomStationPos()];
+        plasma = [];
+        stationShots = [];
+        explosions = [];
+        shipExplosion = null;
+        shipDestroyed = false;
+        savedShipPos = null;
+        ship.x = 0; ship.y = 0; ship.vx = 0; ship.vy = 0;
+        hideGameOver();
+    });
+    // allow Enter to restart when overlay active
+    window.addEventListener('keydown', (e) => {
+        if (gameOver && (e.code === 'Enter' || e.key === 'Enter')) {
+            const restart = document.getElementById('restartButton');
+            if (restart) restart.click();
+        }
+    });
+}
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', _attachRestartHandlers);
+} else {
+    _attachRestartHandlers();
+}
 gameLoop();

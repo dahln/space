@@ -220,19 +220,22 @@ function updateLevelDisplay() {
 let globalStationBaseSpeed = 1.5;
 
 function applyLevelScaling() {
-    // Stations get noticeably faster each level
-    globalStationBaseSpeed = 1.2 + (level - 1) * 0.25;
-    // Station shots get faster with level
-    stationShotSpeed = 4 + (level - 1) * 0.5;
-    // Player plasma scales with level (so player firepower keeps pace)
+    // Cap the effective level used for speed/scaling so values stop increasing after level 10
+    const effectiveLevel = Math.min(level, 10);
+    const levelOffset = Math.max(0, effectiveLevel - 1);
+    // Stations get noticeably faster each level (capped)
+    globalStationBaseSpeed = 1.2 + levelOffset * 0.25;
+    // Station shots get faster with level (capped)
+    stationShotSpeed = 4 + levelOffset * 0.5;
+    // Player plasma scales with level (so player firepower keeps pace) (capped)
     plasmaSpeed = 7 + (level - 1) * 0.6;
-    // Ship handling slightly improves with level (small bump)
+    // Ship handling slightly improves with level (small bump) (capped)
     ship.thrust = 0.12 + (level - 1) * 0.015;
     ship.maxSpeed = 6 + (level - 1) * 0.25;
     // Update existing stations to match the new level scaling
     for (let s of stations) {
-        s.speed = globalStationBaseSpeed + Math.random() * 0.5;
-        s.fireRate = Math.max(20, stationFireRate - Math.floor((level - 1) * 3));
+    s.speed = globalStationBaseSpeed + Math.random() * 0.5;
+    s.fireRate = Math.max(20, stationFireRate - Math.floor(levelOffset * 3));
     }
 }
 
@@ -288,11 +291,28 @@ function randomStationPos() {
         burstRemaining: 0,
         // frames until next shot within a burst
         shotTimer: 0,
-        // Fire rate decreases (faster firing) with level, clamped
-        fireRate: Math.max(20, stationFireRate - Math.floor((level - 1) * 3))
+    // Fire rate decreases (faster firing) with level, clamped. Use capped effective level so it stops changing after level 10
+    fireRate: (function(){ const effLevel = Math.min(level, 10); const levelOffset = Math.max(0, effLevel - 1); return Math.max(20, stationFireRate - Math.floor(levelOffset * 3)); })()
     };
 }
-let stations = [randomStationPos()];
+// Number of enemy stations to spawn each level (can increase at milestones)
+let stationsPerLevel = 1;
+
+// Active stations array (will be populated by waves)
+let stations = [];
+
+// Helper: spawn N stations for the current level and apply level-based scaling
+function spawnStationsForLevel(count) {
+    for (let i = 0; i < count; i++) {
+        let s = randomStationPos();
+        s.speed = globalStationBaseSpeed + 0.3 + Math.random() * 0.5;
+        const eff = Math.min(level, 10);
+        const levelOffset = Math.max(0, eff - 1);
+        s.fireRate = Math.max(12, stationFireRate - Math.floor(levelOffset * 4));
+        s.spawnTimer = 60;
+        stations.push(s);
+    }
+}
 
 // Load SVG explosion image
 const explosionImg = new Image();
@@ -759,6 +779,9 @@ function updateStationShots() {
     );
 }
 
+// Track how many stations have been destroyed this level (used for wave progression)
+let stationsDestroyedThisLevel = 0;
+
 function checkCollisions() {
     // Plasma vs Station
     for (let i = plasma.length - 1; i >= 0; i--) {
@@ -781,24 +804,29 @@ function checkCollisions() {
                 } catch (e) {
                     try { if (!muted) { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } } catch (e) { }
                 }
-                // Spawn a new station using current level-based scaling
-                let newStation = randomStationPos();
-                newStation.speed = globalStationBaseSpeed + 0.3 + Math.random() * 0.5;
-                newStation.fireRate = Math.max(12, stationFireRate - Math.floor((level - 1) * 4));
-                // begin spawn animation (60 frames ~= 1 second)
-                newStation.spawnTimer = 60;
-                stations.push(newStation);
+                // Remove the destroyed station and the plasma bolt
                 stations.splice(j, 1);
                 plasma.splice(i, 1);
-                // level up
-                level++;
-                // Award extra lives every 5 levels (when hitting 5,10,15,...)
-                if (level % 5 === 0) {
-                    lives += 2;
-                    updateLivesDisplay();
+                // Track destruction for the current wave
+                stationsDestroyedThisLevel++;
+                // If all stations for this level are destroyed, advance to next level and spawn the next wave
+                if (stations.length === 0) {
+                    // level up
+                    level++;
+                    // Number of stations follows: 1 for levels 1-4, 2 for 5-9, 3 for 10-14, etc.
+                    stationsPerLevel = 1 + Math.floor(level / 5);
+                    // Award extra lives every 5 levels (when hitting 5,10,15,...)
+                    if (level % 5 === 0) {
+                        lives += 2;
+                        updateLivesDisplay();
+                    }
+                    applyLevelScaling();
+                    updateLevelDisplay();
+                    // Reset per-level destruction counter and spawn next wave
+                    stationsDestroyedThisLevel = 0;
+                    spawnStationsForLevel(stationsPerLevel);
                 }
-                applyLevelScaling();
-                updateLevelDisplay();
+                // break out of inner loop after handling collision
                 break;
             }
         }
@@ -963,6 +991,9 @@ applyLevelScaling();
 updateLevelDisplay();
 // Initialize lives display
 updateLivesDisplay();
+// Ensure initial stationsPerLevel and spawn the first wave
+stationsPerLevel = 1 + Math.floor(level / 5);
+spawnStationsForLevel(stationsPerLevel);
 // Hook up restart button and Enter key (run now if DOM already parsed)
 function _attachRestartHandlers() {
     const restart = document.getElementById('restartButton');
@@ -970,10 +1001,13 @@ function _attachRestartHandlers() {
         // Reset minimal game state: lives, level, stations, explosions, plasma, sounds
         lives = 5;
         updateLivesDisplay();
-        level = 1;
-        applyLevelScaling();
-        updateLevelDisplay();
-        stations = [randomStationPos()];
+    level = 1;
+    applyLevelScaling();
+    updateLevelDisplay();
+    // Reset wave settings based on level and spawn first wave
+    stationsPerLevel = 1 + Math.floor(level / 5);
+    stations = [];
+    spawnStationsForLevel(stationsPerLevel);
         plasma = [];
         stationShots = [];
         explosions = [];

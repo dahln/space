@@ -14,7 +14,6 @@
     <div id="hud">
         <div id="levelDisplay">Level: 1</div>
         <div id="livesDisplay">Lives: 5</div>
-        <button id="storyButton" aria-label="Read the story">The Story</button>
     </div>
     <canvas id="gameCanvas"></canvas>
     <div id="gameOverOverlay" role="dialog" aria-hidden="true" style="display:none;">
@@ -28,11 +27,33 @@
     <div id="startModal" role="dialog" aria-hidden="false" style="display:flex;">
         <div class="overlay-content">
             <h1>Mission Briefing</h1>
-            <p><strong>Who:</strong> You are the lone captain of a scout cruiser — harried by hostile orbital stations.</p>
-            <p><strong>Why:</strong> The frontier is under siege. Stations harvest resources and threaten nearby colonies. You must stop them.</p>
-            <p><strong>Objective:</strong> Destroy enemy stations, survive their bursts, and level up. Use Arrow keys to steer and Space to fire.</p>
-            <p class="muted-note">Tip: Press Esc during play to pause. Toggle audio with the speaker button.</p>
-            <button id="startButton" class="overlay-button">Start Mission</button>
+                <p>
+                    The Outpost stations were not built to attack. They were watchtowers, carved from old hulls and
+                    fitted with defensive turrets to keep a forgotten shipping lane safe. For decades they kept the
+                    trail clear — shepherding convoys, relaying distress beacons, and tending to the delicate balance
+                    of commerce between the inner colonies and the rim worlds.
+                </p>
+                <p>
+                    Then the cargo drives started to fail. Shipments of stabilizer ore and coolant arrived late, or
+                    not at all. The corporations that funded the Outposts grew hungry for salvage and secrets. Pilots began
+                    to vanish near certain waypoints. Rumors spread that a hidden archive had been uncovered: blueprints
+                    for a drive modifier that could let a single convoy outrun blockades and taxes.
+                </p>
+                <p>
+                    The stations fractured into factions. Some upheld their original mandate — protect and watch. Others
+                    sold their turrets to the highest bidder or rewired their targeting logic to hunt anything that
+                    carried the old seals. What was once a neutral line of guardians became a gauntlet of suspicion,
+                    and then, eventually, a battlefield.
+                </p>
+                <p>
+                    You fly not because you seek glory, but because you fly where the job takes you. The fight is a
+                    tangle of contracts, survivors revenge, and corporate hunger. Each station you take down is
+                    another node freed from whatever grip has twisted its purpose. Each skirmish is a step toward
+                    a passage where ships can travel without fear — or toward the next faction that will claim it.
+                </p>
+                <p class="muted-note">— Transmission from an anonymous convoy pilot</p>
+                <p class="muted-note"><strong>Controls &amp; Tips:</strong> Arrow keys to steer, Space to fire, Esc to pause. Use short thrust bursts to dodge; conserve momentum. Offscreen stations are indicated at the screen edge.</p>
+            <button id="startButton" class="overlay-button">Launch Mission</button>
         </div>
     </div>
     <div id="muteButton" role="button" aria-label="Mute audio" title="Mute audio">🔊</div>

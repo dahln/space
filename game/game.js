@@ -70,11 +70,11 @@ try {
     if (saved !== null) muted = saved === '1';
 } catch (e) { }
 // expose on window so UI code can read it (let doesn't create window property)
-try { window.muted = !!muted; } catch(e) {}
+try { window.muted = !!muted; } catch (e) { }
 
 function setMuted(v) {
     muted = !!v;
-    try { window.muted = muted; } catch(e) {}
+    try { window.muted = muted; } catch (e) { }
     try { localStorage.setItem('space_game_muted', muted ? '1' : '0'); } catch (e) { }
     // Update music playback
     try {
@@ -143,10 +143,10 @@ function _attachStartModal() {
                 startModal.style.display = 'none';
                 startModal.setAttribute('aria-hidden', 'true');
             }
-                // Unlock audio and start music on user gesture
-                try { _unlockAudioOnce(); } catch (e) { }
-                // Ensure audio is unmuted when the player starts
-                try { setMuted(false); } catch (e) { }
+            // Unlock audio and start music on user gesture
+            try { _unlockAudioOnce(); } catch (e) { }
+            // Ensure audio is unmuted when the player starts
+            try { setMuted(false); } catch (e) { }
             paused = false;
         });
     }
@@ -234,8 +234,8 @@ function applyLevelScaling() {
     ship.maxSpeed = 6 + (level - 1) * 0.25;
     // Update existing stations to match the new level scaling
     for (let s of stations) {
-    s.speed = globalStationBaseSpeed + Math.random() * 0.5;
-    s.fireRate = Math.max(20, stationFireRate - Math.floor(levelOffset * 3));
+        s.speed = globalStationBaseSpeed + Math.random() * 0.5;
+        s.fireRate = Math.max(20, stationFireRate - Math.floor(levelOffset * 3));
     }
 }
 
@@ -281,18 +281,18 @@ function randomStationPos() {
         gunAngle: ang,
         // how quickly the station can rotate its turret (0..1, larger is faster)
         gunTurnRate: 0.18,
-    // visual spin angle (radians) for perpetual rotation
-    spinAngle: Math.random() * Math.PI * 2,
-    // visual spin speed (radians per frame) - increased range to be more noticeable
-    spinSpeed: (Math.random() * 0.06 + 0.02),
+        // visual spin angle (radians) for perpetual rotation
+        spinAngle: Math.random() * Math.PI * 2,
+        // visual spin speed (radians per frame) - increased range to be more noticeable
+        spinSpeed: (Math.random() * 0.06 + 0.02),
         // tactical state: idle/tracking/burst
         state: 'idle',
         // number of shots remaining in the current burst
         burstRemaining: 0,
         // frames until next shot within a burst
         shotTimer: 0,
-    // Fire rate decreases (faster firing) with level, clamped. Use capped effective level so it stops changing after level 10
-    fireRate: (function(){ const effLevel = Math.min(level, 10); const levelOffset = Math.max(0, effLevel - 1); return Math.max(20, stationFireRate - Math.floor(levelOffset * 3)); })()
+        // Fire rate decreases (faster firing) with level, clamped. Use capped effective level so it stops changing after level 10
+        fireRate: (function () { const effLevel = Math.min(level, 10); const levelOffset = Math.max(0, effLevel - 1); return Math.max(20, stationFireRate - Math.floor(levelOffset * 3)); })()
     };
 }
 // Number of enemy stations to spawn each level (can increase at milestones)
@@ -350,7 +350,7 @@ function cellSeed(cx, cy) {
 
 // Small PRNG (Mulberry32) seeded with a 32-bit integer
 function mulberry32(a) {
-    return function() {
+    return function () {
         a |= 0;
         a = (a + 0x6D2B79F5) | 0;
         let t = Math.imul(a ^ (a >>> 15), 1 | a);
@@ -649,8 +649,8 @@ function updatePlasma() {
 
 function updateStations() {
     for (let station of stations) {
-    // advance visual spin regardless of behavior (slowed by 20%)
-    station.spinAngle = (station.spinAngle || 0) + (station.spinSpeed || 0.02) * 0.5;
+        // advance visual spin regardless of behavior (slowed by 20%)
+        station.spinAngle = (station.spinAngle || 0) + (station.spinSpeed || 0.02) * 0.5;
         // If station is currently spawning, decrement timer and apply minimal drift
         if (station.spawnTimer && station.spawnTimer > 0) {
             station.spawnTimer--;
@@ -1001,13 +1001,13 @@ function _attachRestartHandlers() {
         // Reset minimal game state: lives, level, stations, explosions, plasma, sounds
         lives = 5;
         updateLivesDisplay();
-    level = 1;
-    applyLevelScaling();
-    updateLevelDisplay();
-    // Reset wave settings based on level and spawn first wave
-    stationsPerLevel = 1 + Math.floor(level / 5);
-    stations = [];
-    spawnStationsForLevel(stationsPerLevel);
+        level = 1;
+        applyLevelScaling();
+        updateLevelDisplay();
+        // Reset wave settings based on level and spawn first wave
+        stationsPerLevel = 1 + Math.floor(level / 5);
+        stations = [];
+        spawnStationsForLevel(stationsPerLevel);
         plasma = [];
         stationShots = [];
         explosions = [];

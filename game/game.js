@@ -206,36 +206,79 @@ let shipExplosion = null;
 // Camera offset
 let camera = { x: 0, y: 0 };
 
-// Generate star field for background
-const STAR_COUNT = 1000;
+// Dynamic, tiled star field so stars exist everywhere without storing a huge array.
+// Instead of keeping all stars in memory we deterministically generate a small
+// set of stars per tiled cell around the camera using a hashed PRNG. This
+// makes the starfield appear infinite and stable as the camera/ship moves.
 const STAR_COLORS = ['#fff', '#bbf', '#88f', '#eef', '#ccf'];
-let stars = [];
-function generateStars() {
-    stars = [];
-    for (let i = 0; i < STAR_COUNT; i++) {
-        stars.push({
-            x: Math.random() * 5000 - 2500,
-            y: Math.random() * 5000 - 2500,
-            r: Math.random() * 1.5 + 0.5,
-            color: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)]
-        });
-    }
+// Number of stars per tile cell (tune for density).
+const STARS_PER_CELL = 40;
+// Size of each tile in world pixels. Larger => fewer PRNG calls but coarser distribution.
+const STAR_TILE_SIZE = 800;
+
+// Simple integer hash to produce a deterministic seed from cell coords
+function cellSeed(cx, cy) {
+    // mix coordinates into a 32-bit integer
+    let n = cx * 374761393 + cy * 668265263;
+    n = (n ^ (n >>> 13)) >>> 0;
+    return n;
 }
-generateStars();
+
+// Small PRNG (Mulberry32) seeded with a 32-bit integer
+function mulberry32(a) {
+    return function() {
+        a |= 0;
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
 
 function drawBackground() {
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    for (let star of stars) {
-        let sx = star.x - camera.x + canvas.width / 2;
-        let sy = star.y - camera.y + canvas.height / 2;
-        if (sx >= 0 && sx < canvas.width && sy >= 0 && sy < canvas.height) {
-            ctx.beginPath();
-            ctx.arc(sx, sy, star.r, 0, Math.PI * 2);
-            ctx.fillStyle = star.color;
-            ctx.globalAlpha = 0.7;
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
+
+    // Determine world bounds we need to cover (add small padding so stars don't pop at edges)
+    const pad = 64;
+    const left = camera.x - pad;
+    const top = camera.y - pad;
+    const right = camera.x + canvas.width + pad;
+    const bottom = camera.y + canvas.height + pad;
+
+    // Determine which tile cells intersect the visible area
+    const cellLeft = Math.floor(left / STAR_TILE_SIZE);
+    const cellRight = Math.floor(right / STAR_TILE_SIZE);
+    const cellTop = Math.floor(top / STAR_TILE_SIZE);
+    const cellBottom = Math.floor(bottom / STAR_TILE_SIZE);
+
+    for (let cy = cellTop; cy <= cellBottom; cy++) {
+        for (let cx = cellLeft; cx <= cellRight; cx++) {
+            // seed per cell
+            const seed = cellSeed(cx, cy);
+            const rand = mulberry32(seed);
+            for (let i = 0; i < STARS_PER_CELL; i++) {
+                // position inside this cell
+                const localX = rand() * STAR_TILE_SIZE;
+                const localY = rand() * STAR_TILE_SIZE;
+                const worldX = cx * STAR_TILE_SIZE + localX;
+                const worldY = cy * STAR_TILE_SIZE + localY;
+
+                // small variation in radius and color
+                const r = 0.5 + rand() * 1.5;
+                const color = STAR_COLORS[Math.floor(rand() * STAR_COLORS.length)];
+
+                const sx = worldX - camera.x;
+                const sy = worldY - camera.y;
+                if (sx >= -10 && sx <= canvas.width + 10 && sy >= -10 && sy <= canvas.height + 10) {
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = 0.75;
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                }
+            }
         }
     }
 }

@@ -30,7 +30,9 @@ let ship = {
     radius: 16,
     thrust: 0.15,
     friction: 0.99,
-    maxSpeed: 6
+    maxSpeed: 6,
+    // frames remaining while the ship phases in after respawn
+    spawnTimer: 0
 };
 
 // Remember where the ship was when it was destroyed so we can respawn there
@@ -58,6 +60,12 @@ plasmaImg.src = 'plasma.svg';
 // Load SVG station image and station-related constants (moved up so functions that run at load can use them)
 const stationImg = new Image();
 stationImg.src = 'station.svg';
+// Spawn effect SVG for stations (used during 1s phase-in)
+const stationSpawnImg = new Image();
+stationSpawnImg.src = 'station-spawn.svg';
+// Ship spawn effect SVG (phase-in)
+const shipSpawnImg = new Image();
+shipSpawnImg.src = 'ship-spawn.svg';
 const stationRadius = 30;
 const stationFireRate = 60; // frames
 let stationShots = [];
@@ -105,6 +113,8 @@ function randomStationPos() {
         x: ship.x + Math.cos(ang) * distFromPlayer,
         y: ship.y + Math.sin(ang) * distFromPlayer,
         cooldown: 0,
+    // spawnTimer frames: when >0 the station is phasing in and should not act
+    spawnTimer: 60, // 60 frames = ~1 second at 60fps
         // base speed scales with level; add a small random variance
         speed: speed,
         // per-station velocity (used for wandering when player is dead)
@@ -121,6 +131,8 @@ const explosionImg = new Image();
 explosionImg.src = 'explosion.svg';
 
 let explosions = [];
+// Separate explosion used for the player ship so it can be removed when its animation ends
+let shipExplosion = null;
 
 // Camera offset
 let camera = { x: 0, y: 0 };
@@ -195,10 +207,51 @@ function drawShip(x, y, angle) {
     ctx.restore();
 }
 
+// Draw ship with spawn overlay centered on-screen (used when ship.spawnTimer > 0)
+function drawShipWithSpawn(x, y, angle) {
+    // draw ship normally but with fade based on spawn progress
+    if (ship.spawnTimer && ship.spawnTimer > 0) {
+        const total = 60;
+        const t = Math.max(0, Math.min(1, (total - ship.spawnTimer) / total));
+        // draw spawn glow behind ship
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.globalAlpha = 0.9 * (1 - (ship.spawnTimer / total));
+        ctx.drawImage(shipSpawnImg, -32, -32, 64, 64);
+        ctx.globalAlpha = 1.0;
+        ctx.restore();
+        // draw the ship faded in
+        ctx.save();
+        ctx.globalAlpha = t;
+        drawShip(x, y, angle);
+        ctx.globalAlpha = 1.0;
+        ctx.restore();
+    } else {
+        drawShip(x, y, angle);
+    }
+}
+
 function drawStation(station) {
     ctx.save();
     ctx.translate(station.x - camera.x, station.y - camera.y);
-    ctx.drawImage(stationImg, -stationRadius, -stationRadius, stationRadius * 2, stationRadius * 2);
+    // If station is currently spawning, draw a phase-in animation using stationSpawnImg
+    if (station.spawnTimer && station.spawnTimer > 0) {
+        const total = 60; // frames for the spawn animation
+        const t = Math.max(0, Math.min(1, (total - station.spawnTimer) / total)); // 0..1 progress
+        // draw the station faded in and slightly scaled
+        ctx.globalAlpha = t;
+        const scale = 0.6 + 0.4 * t;
+        ctx.save();
+        ctx.scale(scale, scale);
+        ctx.drawImage(stationImg, -stationRadius, -stationRadius, stationRadius * 2, stationRadius * 2);
+        ctx.restore();
+        // draw spawn glow on top
+        ctx.globalAlpha = 0.9 * (1 - (station.spawnTimer / total));
+        ctx.drawImage(stationSpawnImg, -stationRadius, -stationRadius, stationRadius * 2, stationRadius * 2);
+        ctx.globalAlpha = 1.0;
+    } else {
+        ctx.drawImage(stationImg, -stationRadius, -stationRadius, stationRadius * 2, stationRadius * 2);
+    }
     ctx.restore();
 }
 
@@ -230,10 +283,12 @@ let shipDestroyed = false;
 let shipRespawnTimer = 0;
 
 function drawShipExplosion() {
+    if (!shipExplosion) return;
     ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    let size = ship.radius * 4;
-    ctx.globalAlpha = 0.8;
+    // draw ship explosion at the shipExplosion world position relative to camera
+    ctx.translate(shipExplosion.x - camera.x, shipExplosion.y - camera.y);
+    let size = ship.radius * 4 * shipExplosion.scale;
+    ctx.globalAlpha = shipExplosion.alpha;
     ctx.drawImage(explosionImg, -size/2, -size/2, size, size);
     ctx.globalAlpha = 1.0;
     ctx.restore();
@@ -288,6 +343,14 @@ function updatePlasma() {
 
 function updateStations() {
     for (let station of stations) {
+        // If station is currently spawning, decrement timer and apply minimal drift
+        if (station.spawnTimer && station.spawnTimer > 0) {
+            station.spawnTimer--;
+            station.x += station.vx !== undefined ? station.vx * 0.2 : 0;
+            station.y += station.vy !== undefined ? station.vy * 0.2 : 0;
+            // while spawning, skip chasing/firing logic
+            continue;
+        }
         // compute vector to player (safe even if player dead)
         let dx = ship.x - station.x;
         let dy = ship.y - station.y;
@@ -367,6 +430,8 @@ function checkCollisions() {
                 let newStation = randomStationPos();
                 newStation.speed = globalStationBaseSpeed + 0.3 + Math.random() * 0.5;
                 newStation.fireRate = Math.max(12, stationFireRate - Math.floor((level - 1) * 4));
+                // begin spawn animation (60 frames ~= 1 second)
+                newStation.spawnTimer = 60;
                 stations.push(newStation);
                 stations.splice(j, 1);
                 plasma.splice(i, 1);
@@ -379,7 +444,8 @@ function checkCollisions() {
         }
     }
     // Station shot vs Ship
-    if (!shipDestroyed) {
+    // Shots should not damage the player while the player is in spawn phase
+    if (!shipDestroyed && ship.spawnTimer <= 0) {
         for (let i = stationShots.length - 1; i >= 0; i--) {
             let dx = stationShots[i].x - ship.x;
             let dy = stationShots[i].y - ship.y;
@@ -390,13 +456,14 @@ function checkCollisions() {
                 // Save the ship's world position so we can respawn at the same place
                 savedShipPos = { x: ship.x, y: ship.y };
                 shipRespawnTimer = 120; // 2 seconds at 60fps
-                explosions.push({
+                // Create a dedicated ship explosion so we can remove it when animation ends
+                shipExplosion = {
                     x: ship.x,
                     y: ship.y,
                     scale: 0.5,
                     alpha: 1.0,
                     frame: 0
-                });
+                };
                 stationShots.splice(i, 1);
                 // level down
                 level = Math.max(1, level - 1);
@@ -439,7 +506,11 @@ function gameLoop() {
     for (let explosion of explosions) drawExplosion(explosion);
     // Draw ship (always center)
     if (!shipDestroyed) {
-        drawShip(canvas.width / 2, canvas.height / 2, ship.angle);
+        if (ship.spawnTimer && ship.spawnTimer > 0) {
+            drawShipWithSpawn(canvas.width / 2, canvas.height / 2, ship.angle);
+        } else {
+            drawShip(canvas.width / 2, canvas.height / 2, ship.angle);
+        }
     } else {
         drawShipExplosion();
         shipRespawnTimer--;
@@ -456,12 +527,16 @@ function gameLoop() {
                 // clear motion but keep orientation/camera consistent with the world
                 ship.vx = 0;
                 ship.vy = 0;
+                // Start ship spawn phase (1 second = 60 frames)
+                ship.spawnTimer = 60;
                 // Do NOT reset camera or recreate objects — keep everything active
                 shipDestroyed = false;
                 // clear saved position until next death
                 savedShipPos = null;
         }
     }
+    // Decrement ship spawn timer if active
+    if (ship.spawnTimer && ship.spawnTimer > 0) ship.spawnTimer--;
     // Animate explosions
     if (!paused) {
         for (let i = explosions.length - 1; i >= 0; i--) {
@@ -470,6 +545,15 @@ function gameLoop() {
             explosions[i].frame++;
             if (explosions[i].alpha <= 0) {
                 explosions.splice(i, 1);
+            }
+        }
+        // Animate and remove the ship explosion when it finishes
+        if (shipExplosion) {
+            shipExplosion.scale += 0.12;
+            shipExplosion.alpha -= 0.04;
+            shipExplosion.frame++;
+            if (shipExplosion.alpha <= 0) {
+                shipExplosion = null;
             }
         }
     }

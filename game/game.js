@@ -813,8 +813,8 @@ function checkCollisions() {
                 if (stations.length === 0) {
                     // level up
                     level++;
-                    // Number of stations follows: 1 for levels 1-4, 2 for 5-9, 3 for 10-14, etc.
-                    stationsPerLevel = 1 + Math.floor(level / 5);
+                    // Number of stations follows: 1 for levels 1-9, 2 for 10-19, 3 for 20-29, etc.
+                    stationsPerLevel = 1 + Math.floor(level / 10);
                     // Award extra lives every 5 levels (when hitting 5,10,15,...)
                     if (level % 5 === 0) {
                         lives += 2;
@@ -992,7 +992,7 @@ updateLevelDisplay();
 // Initialize lives display
 updateLivesDisplay();
 // Ensure initial stationsPerLevel and spawn the first wave
-stationsPerLevel = 1 + Math.floor(level / 5);
+stationsPerLevel = 1 + Math.floor(level / 10);
 spawnStationsForLevel(stationsPerLevel);
 // Hook up restart button and Enter key (run now if DOM already parsed)
 function _attachRestartHandlers() {

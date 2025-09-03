@@ -70,22 +70,22 @@ function _unlockAudioOnce() {
     _audioUnlocked = true;
     try {
         const p = playerSound.cloneNode();
-        p.play().then(() => { try { p.pause(); p.currentTime = 0; } catch (e) {} }).catch(() => {});
-    } catch (e) {}
+        p.play().then(() => { try { p.pause(); p.currentTime = 0; } catch (e) { } }).catch(() => { });
+    } catch (e) { }
     try {
         const s = stationSound.cloneNode();
-        s.play().then(() => { try { s.pause(); s.currentTime = 0; } catch (e) {} }).catch(() => {});
-    } catch (e) {}
+        s.play().then(() => { try { s.pause(); s.currentTime = 0; } catch (e) { } }).catch(() => { });
+    } catch (e) { }
     try {
         const x = explosionSound.cloneNode();
-        x.play().then(() => { try { x.pause(); x.currentTime = 0; } catch (e) {} }).catch(() => {});
-    } catch (e) {}
+        x.play().then(() => { try { x.pause(); x.currentTime = 0; } catch (e) { } }).catch(() => { });
+    } catch (e) { }
     // Ensure background music starts on user gesture if it wasn't allowed earlier
     try {
         music.play().catch(() => {
-            try { music.currentTime = 0; music.play().catch(() => {}); } catch (e) {}
+            try { music.currentTime = 0; music.play().catch(() => { }); } catch (e) { }
         });
-    } catch (e) {}
+    } catch (e) { }
     window.removeEventListener('keydown', _unlockAudioOnce);
     window.removeEventListener('pointerdown', _unlockAudioOnce);
 }
@@ -103,7 +103,7 @@ music.preload = 'auto';
 music.loop = true;
 // Try to start music immediately; if the browser blocks autoplay this will be
 // handled by the unlock helper below which will call play after a user gesture.
-try { music.play().catch(() => {}); } catch (e) {}
+try { music.play().catch(() => { }); } catch (e) { }
 
 
 // Load SVG station image and station-related constants (moved up so functions that run at load can use them)
@@ -161,25 +161,29 @@ function randomStationPos() {
     return {
         x: ship.x + Math.cos(ang) * distFromPlayer,
         y: ship.y + Math.sin(ang) * distFromPlayer,
-    // start with a randomized cooldown so stations don't all fire in sync
-    cooldown: Math.floor(Math.random() * stationFireRate),
-    // spawnTimer frames: when >0 the station is phasing in and should not act
-    spawnTimer: 60, // 60 frames = ~1 second at 60fps
+        // start with a randomized cooldown so stations don't all fire in sync
+        cooldown: Math.floor(Math.random() * stationFireRate),
+        // spawnTimer frames: when >0 the station is phasing in and should not act
+        spawnTimer: 60, // 60 frames = ~1 second at 60fps
         // base speed scales with level; add a small random variance
         speed: speed,
         // per-station velocity (used for wandering when player is dead)
         vx: Math.cos(ang) * speed * 0.6,
         vy: Math.sin(ang) * speed * 0.6,
-    // which direction the station's turret/gun is currently facing (radians)
-    gunAngle: ang,
-    // how quickly the station can rotate its turret (0..1, larger is faster)
-    gunTurnRate: 0.18,
-    // tactical state: idle/tracking/burst
-    state: 'idle',
-    // number of shots remaining in the current burst
-    burstRemaining: 0,
-    // frames until next shot within a burst
-    shotTimer: 0,
+        // which direction the station's turret/gun is currently facing (radians)
+        gunAngle: ang,
+        // how quickly the station can rotate its turret (0..1, larger is faster)
+        gunTurnRate: 0.18,
+    // visual spin angle (radians) for perpetual rotation
+    spinAngle: Math.random() * Math.PI * 2,
+    // visual spin speed (radians per frame) - increased range to be more noticeable
+    spinSpeed: (Math.random() * 0.06 + 0.02),
+        // tactical state: idle/tracking/burst
+        state: 'idle',
+        // number of shots remaining in the current burst
+        burstRemaining: 0,
+        // frames until next shot within a burst
+        shotTimer: 0,
         // Fire rate decreases (faster firing) with level, clamped
         fireRate: Math.max(20, stationFireRate - Math.floor((level - 1) * 3))
     };
@@ -262,11 +266,11 @@ function drawShip(x, y, angle) {
     // Draw engine fire if moving forward
     if (keys.up) {
         // Fire is drawn at the rear (left side, negative X in ship's local space)
-    ctx.save();
-    ctx.translate(-36, 0); // move fire just a tad further back
-    ctx.rotate(-Math.PI / 2); // rotate fire to match ship orientation
-    ctx.drawImage(engineFireImg, -8, 8, 16, 24);
-    ctx.restore();
+        ctx.save();
+        ctx.translate(-36, 0); // move fire just a tad further back
+        ctx.rotate(-Math.PI / 2); // rotate fire to match ship orientation
+        ctx.drawImage(engineFireImg, -8, 8, 16, 24);
+        ctx.restore();
     }
     ctx.drawImage(shipImg, -16, -16, 32, 32);
     ctx.restore();
@@ -299,6 +303,8 @@ function drawShipWithSpawn(x, y, angle) {
 function drawStation(station) {
     ctx.save();
     ctx.translate(station.x - camera.x, station.y - camera.y);
+    // Apply perpetual visual spin
+    ctx.rotate(station.spinAngle || 0);
     // If station is currently spawning, draw a phase-in animation using stationSpawnImg
     if (station.spawnTimer && station.spawnTimer > 0) {
         const total = 60; // frames for the spawn animation
@@ -391,7 +397,7 @@ function drawExplosion(explosion) {
     ctx.translate(explosion.x - camera.x, explosion.y - camera.y);
     let size = stationRadius * 2 * explosion.scale;
     ctx.globalAlpha = explosion.alpha;
-    ctx.drawImage(explosionImg, -size/2, -size/2, size, size);
+    ctx.drawImage(explosionImg, -size / 2, -size / 2, size, size);
     ctx.globalAlpha = 1.0;
     ctx.restore();
 }
@@ -406,7 +412,7 @@ function drawShipExplosion() {
     ctx.translate(shipExplosion.x - camera.x, shipExplosion.y - camera.y);
     let size = ship.radius * 4 * shipExplosion.scale;
     ctx.globalAlpha = shipExplosion.alpha;
-    ctx.drawImage(explosionImg, -size/2, -size/2, size, size);
+    ctx.drawImage(explosionImg, -size / 2, -size / 2, size, size);
     ctx.globalAlpha = 1.0;
     ctx.restore();
 }
@@ -448,9 +454,9 @@ function shootPlasma() {
         // If browser/autoplay policies block play, this will silently fail.
         // Clone to allow overlapping quick shots without cutting previous sound.
         const s = playerSound.cloneNode();
-        s.play().catch(() => {});
+        s.play().catch(() => { });
     } catch (e) {
-        try { playerSound.currentTime = 0; playerSound.play().catch(() => {}); } catch (e) {}
+        try { playerSound.currentTime = 0; playerSound.play().catch(() => { }); } catch (e) { }
     }
 }
 let lastSpace = false;
@@ -469,6 +475,8 @@ function updatePlasma() {
 
 function updateStations() {
     for (let station of stations) {
+    // advance visual spin regardless of behavior (slowed by 20%)
+    station.spinAngle = (station.spinAngle || 0) + (station.spinSpeed || 0.02) * 0.5;
         // If station is currently spawning, decrement timer and apply minimal drift
         if (station.spawnTimer && station.spawnTimer > 0) {
             station.spawnTimer--;
@@ -506,14 +514,14 @@ function updateStations() {
             station.y += station.vy !== undefined ? station.vy : 0;
         }
 
-    // Decrement timers
-    station.cooldown = (station.cooldown || 0) - 1;
-    station.shotTimer = (station.shotTimer || 0) - 1;
+        // Decrement timers
+        station.cooldown = (station.cooldown || 0) - 1;
+        station.shotTimer = (station.shotTimer || 0) - 1;
         // Fire at player only if player is alive and visible on screen
         let shipScreenX = ship.x - camera.x;
         let shipScreenY = ship.y - camera.y;
         let shipVisible = shipScreenX >= -50 && shipScreenX <= canvas.width + 50 && shipScreenY >= -50 && shipScreenY <= canvas.height + 50;
-    if (!shipDestroyed && shipVisible) {
+        if (!shipDestroyed && shipVisible) {
             // Aim turret gradually toward the player
             let desiredGunAngle = Math.atan2(dy, dx);
             // normalize angle difference to -PI..PI
@@ -548,9 +556,9 @@ function updateStations() {
                             shot.y > camera.y - 50 && shot.y < camera.y + canvas.height + 50) {
                             try {
                                 const s = stationSound.cloneNode();
-                                s.play().catch(() => {});
+                                s.play().catch(() => { });
                             } catch (e) {
-                                try { stationSound.currentTime = 0; stationSound.play().catch(() => {}); } catch (e) {}
+                                try { stationSound.currentTime = 0; stationSound.play().catch(() => { }); } catch (e) { }
                             }
                         }
                         station.burstRemaining--;
@@ -608,9 +616,9 @@ function checkCollisions() {
                 // Play explosion sound once for station death
                 try {
                     const s = explosionSound.cloneNode();
-                    s.play().catch(() => {});
+                    s.play().catch(() => { });
                 } catch (e) {
-                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => {}); } catch (e) {}
+                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } catch (e) { }
                 }
                 // Spawn a new station using current level-based scaling
                 let newStation = randomStationPos();
@@ -653,9 +661,9 @@ function checkCollisions() {
                 // Play explosion sound once for player death
                 try {
                     const s2 = explosionSound.cloneNode();
-                    s2.play().catch(() => {});
+                    s2.play().catch(() => { });
                 } catch (e) {
-                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => {}); } catch (e) {}
+                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } catch (e) { }
                 }
                 stationShots.splice(i, 1);
                 // level down
@@ -717,24 +725,24 @@ function gameLoop() {
         drawShipExplosion();
         shipRespawnTimer--;
         if (shipRespawnTimer <= 0) {
-                // Respawn ship at the same world position it had when destroyed
-                if (savedShipPos) {
-                    ship.x = savedShipPos.x;
-                    ship.y = savedShipPos.y;
-                } else {
-                    // fallback to origin if for some reason we don't have a saved position
-                    ship.x = 0;
-                    ship.y = 0;
-                }
-                // clear motion but keep orientation/camera consistent with the world
-                ship.vx = 0;
-                ship.vy = 0;
-                // Start ship spawn phase (1 second = 60 frames)
-                ship.spawnTimer = 60;
-                // Do NOT reset camera or recreate objects — keep everything active
-                shipDestroyed = false;
-                // clear saved position until next death
-                savedShipPos = null;
+            // Respawn ship at the same world position it had when destroyed
+            if (savedShipPos) {
+                ship.x = savedShipPos.x;
+                ship.y = savedShipPos.y;
+            } else {
+                // fallback to origin if for some reason we don't have a saved position
+                ship.x = 0;
+                ship.y = 0;
+            }
+            // clear motion but keep orientation/camera consistent with the world
+            ship.vx = 0;
+            ship.vy = 0;
+            // Start ship spawn phase (1 second = 60 frames)
+            ship.spawnTimer = 60;
+            // Do NOT reset camera or recreate objects — keep everything active
+            shipDestroyed = false;
+            // clear saved position until next death
+            savedShipPos = null;
         }
     }
     // Decrement ship spawn timer if active
@@ -774,7 +782,7 @@ function gameLoop() {
     }
     requestAnimationFrame(gameLoop);
 }
-    // Initialize scaling for the starting level and update HUD
-    applyLevelScaling();
-    updateLevelDisplay();
-    gameLoop();
+// Initialize scaling for the starting level and update HUD
+applyLevelScaling();
+updateLevelDisplay();
+gameLoop();

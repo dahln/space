@@ -61,6 +61,48 @@ const playerSound = new Audio('PlayerSound.flac');
 playerSound.preload = 'auto';
 playerSound.loop = false;
 
+// Global mute state (persisted)
+let muted = false;
+try {
+    const saved = localStorage.getItem('space_game_muted');
+    if (saved !== null) muted = saved === '1';
+} catch (e) { }
+// expose on window so UI code can read it (let doesn't create window property)
+try { window.muted = !!muted; } catch(e) {}
+
+function setMuted(v) {
+    muted = !!v;
+    try { window.muted = muted; } catch(e) {}
+    try { localStorage.setItem('space_game_muted', muted ? '1' : '0'); } catch (e) { }
+    // Update music playback
+    try {
+        if (muted) {
+            music.pause();
+        } else {
+            music.play().catch(() => { });
+        }
+    } catch (e) { }
+    // Update button state if present
+    const btn = document.getElementById('muteButton');
+    if (btn) {
+        btn.classList.toggle('muted', muted);
+        btn.textContent = muted ? '🔇' : '🔊';
+    }
+}
+
+function playSound(audioSrcOrAudio) {
+    if (muted) return;
+    try {
+        if (typeof audioSrcOrAudio === 'string') {
+            const a = new Audio(audioSrcOrAudio);
+            a.play().catch(() => { });
+        } else if (audioSrcOrAudio && audioSrcOrAudio.cloneNode) {
+            const s = audioSrcOrAudio.cloneNode();
+            s.play().catch(() => { });
+        }
+    } catch (e) { }
+}
+
 // Some browsers block audio until a user gesture; prime sounds on first gesture so the
 // initial player shots play immediately. This will attempt to play & pause each sound
 // once on the first key or pointer event and then remove the listeners.
@@ -68,18 +110,9 @@ let _audioUnlocked = false;
 function _unlockAudioOnce() {
     if (_audioUnlocked) return;
     _audioUnlocked = true;
-    try {
-        const p = playerSound.cloneNode();
-        p.play().then(() => { try { p.pause(); p.currentTime = 0; } catch (e) { } }).catch(() => { });
-    } catch (e) { }
-    try {
-        const s = stationSound.cloneNode();
-        s.play().then(() => { try { s.pause(); s.currentTime = 0; } catch (e) { } }).catch(() => { });
-    } catch (e) { }
-    try {
-        const x = explosionSound.cloneNode();
-        x.play().then(() => { try { x.pause(); x.currentTime = 0; } catch (e) { } }).catch(() => { });
-    } catch (e) { }
+    try { if (!muted) { const p = playerSound.cloneNode(); p.play().then(() => { try { p.pause(); p.currentTime = 0; } catch (e) { } }).catch(() => { }); } } catch (e) { }
+    try { if (!muted) { const s = stationSound.cloneNode(); s.play().then(() => { try { s.pause(); s.currentTime = 0; } catch (e) { } }).catch(() => { }); } } catch (e) { }
+    try { if (!muted) { const x = explosionSound.cloneNode(); x.play().then(() => { try { x.pause(); x.currentTime = 0; } catch (e) { } }).catch(() => { }); } } catch (e) { }
     // Ensure background music starts on user gesture if it wasn't allowed earlier
     try {
         music.play().catch(() => {
@@ -104,6 +137,10 @@ music.loop = true;
 // Try to start music immediately; if the browser blocks autoplay this will be
 // handled by the unlock helper below which will call play after a user gesture.
 try { music.play().catch(() => { }); } catch (e) { }
+// Ensure music respects muted state on load
+if (muted) try { music.pause(); } catch (e) { }
+// Apply muted state (updates music playback and UI if present)
+try { setMuted(muted); } catch (e) { }
 
 
 // Load SVG station image and station-related constants (moved up so functions that run at load can use them)
@@ -493,14 +530,10 @@ function shootPlasma() {
         vy: Math.sin(ship.angle) * plasmaSpeed + ship.vy
     });
     // Play firing sound once. Use cloneNode or rewind to allow rapid firing.
+    // Play firing sound
     try {
-        // If browser/autoplay policies block play, this will silently fail.
-        // Clone to allow overlapping quick shots without cutting previous sound.
-        const s = playerSound.cloneNode();
-        s.play().catch(() => { });
-    } catch (e) {
-        try { playerSound.currentTime = 0; playerSound.play().catch(() => { }); } catch (e) { }
-    }
+        playSound(playerSound);
+    } catch (e) { }
 }
 let lastSpace = false;
 
@@ -597,12 +630,7 @@ function updateStations() {
                         // Only play sound when the spawned shot is within the camera bounds
                         if (shot.x > camera.x - 50 && shot.x < camera.x + canvas.width + 50 &&
                             shot.y > camera.y - 50 && shot.y < camera.y + canvas.height + 50) {
-                            try {
-                                const s = stationSound.cloneNode();
-                                s.play().catch(() => { });
-                            } catch (e) {
-                                try { stationSound.currentTime = 0; stationSound.play().catch(() => { }); } catch (e) { }
-                            }
+                            playSound(stationSound);
                         }
                         station.burstRemaining--;
                         // small delay between shots in a burst
@@ -658,10 +686,9 @@ function checkCollisions() {
                 });
                 // Play explosion sound once for station death
                 try {
-                    const s = explosionSound.cloneNode();
-                    s.play().catch(() => { });
+                    playSound(explosionSound);
                 } catch (e) {
-                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } catch (e) { }
+                    try { if (!muted) { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } } catch (e) { }
                 }
                 // Spawn a new station using current level-based scaling
                 let newStation = randomStationPos();
@@ -703,10 +730,9 @@ function checkCollisions() {
                 };
                 // Play explosion sound once for player death
                 try {
-                    const s2 = explosionSound.cloneNode();
-                    s2.play().catch(() => { });
+                    playSound(explosionSound);
                 } catch (e) {
-                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } catch (e) { }
+                    try { if (!muted) { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } } catch (e) { }
                 }
                 stationShots.splice(i, 1);
                 // level down

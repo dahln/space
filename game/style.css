@@ -79,3 +79,29 @@ body {
 #storyButton:hover { transform: translateY(-3px); filter: brightness(1.05); box-shadow: 0 10px 18px rgba(16,78,120,0.5); }
 #storyButton:active { transform: translateY(0); box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
 #storyButton:focus { outline: 2px solid rgba(46,193,255,0.35); outline-offset: 3px; }
+
+/* Mute button bottom-left */
+/* mute control is a non-focusable div to avoid stealing keyboard focus */
+#muteButton {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 30;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #222, #111);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.6);
+    cursor: pointer;
+    font-size: 18px;
+}
+#muteButton:hover { transform: translateY(-2px); filter: brightness(1.08); }
+#muteButton.muted { background: linear-gradient(180deg, #440000, #220000); color: #ffcccc; }
+
+/* ensure it doesn't receive keyboard focus styling */
+#muteButton:focus { outline: none; }

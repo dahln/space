@@ -16,6 +16,7 @@
         <button id="storyButton" aria-label="Read the story">The Story</button>
     </div>
     <canvas id="gameCanvas"></canvas>
+    <div id="muteButton" role="button" aria-label="Mute audio" title="Mute audio">🔊</div>
     <script src="game.js"></script>
     <script>
         // Navigate to the story page when the HUD button is clicked.
@@ -25,6 +26,40 @@
                 btn.addEventListener('click', function (e) {
                     // use a normal navigation so the story page can be shared/bookmarked
                     window.location.href = 'story.html';
+                });
+            }
+            // Mute button wiring (communicates with game.js global setMuted if present)
+            const mBtn = document.getElementById('muteButton');
+            if (mBtn) {
+                // prevent this control from being focusable to avoid stealing keyboard input
+                mBtn.setAttribute('tabindex', '-1');
+                // initialize text based on persisted state if game exposes it
+                try {
+                    const saved = localStorage.getItem('space_game_muted');
+                    const isMuted = saved === '1';
+                    mBtn.classList.toggle('muted', isMuted);
+                    mBtn.textContent = isMuted ? '🔇' : '🔊';
+                } catch (e) { }
+                mBtn.addEventListener('pointerdown', function (ev) {
+                    // prevent the element from receiving focus
+                    ev.preventDefault();
+                    // if game exposes setMuted, call it, otherwise toggle localStorage and update UI
+                    try {
+                        if (typeof setMuted === 'function') {
+                            setMuted(!window.muted);
+                        } else {
+                            const saved = localStorage.getItem('space_game_muted');
+                            const isMuted = saved === '1';
+                            localStorage.setItem('space_game_muted', isMuted ? '0' : '1');
+                            mBtn.classList.toggle('muted', !isMuted);
+                            mBtn.textContent = !isMuted ? '🔇' : '🔊';
+                        }
+                    } catch (e) {
+                        // best-effort UI toggle
+                        const cls = mBtn.classList.toggle('muted');
+                        mBtn.textContent = cls ? '🔇' : '🔊';
+                        try { localStorage.setItem('space_game_muted', cls ? '1' : '0'); } catch (e) { }
+                    }
                 });
             }
         });

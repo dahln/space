@@ -29,7 +29,9 @@ let ship = {
     vy: 0,
     radius: 16,
     thrust: 0.15,
-    friction: 0.99,
+    // Make momentum last ~5x longer than the original 0.99 decay.
+    // Original friction was 0.99; to get a 5x longer decay time use f' = f^(1/5).
+    friction: Math.pow(0.99, 1 / 5),
     maxSpeed: 6,
     // frames remaining while the ship phases in after respawn
     spawnTimer: 0

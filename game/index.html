@@ -9,8 +9,21 @@
 <body>
     <div id="hud">
         <div id="levelDisplay">Level: 1</div>
+        <button id="storyButton" aria-label="Read the story">The Story</button>
     </div>
     <canvas id="gameCanvas"></canvas>
     <script src="game.js"></script>
+    <script>
+        // Navigate to the story page when the HUD button is clicked.
+        document.addEventListener('DOMContentLoaded', function () {
+            const btn = document.getElementById('storyButton');
+            if (btn) {
+                btn.addEventListener('click', function (e) {
+                    // use a normal navigation so the story page can be shared/bookmarked
+                    window.location.href = 'story.html';
+                });
+            }
+        });
+    </script>
 </body>
 </html>

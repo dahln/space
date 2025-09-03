@@ -16,5 +16,28 @@ body {
     border: 2px solid #444;
 }
 
-#hud { position: absolute; top: 8px; right: 12px; z-index: 20; }
-#levelDisplay { color: #fff; font-family: system-ui, sans-serif; font-size: 18px; background: rgba(0,0,0,0.4); padding: 6px 10px; border-radius: 6px; }
+/* HUD container */
+#hud { position: absolute; top: 12px; right: 16px; z-index: 20; display: flex; gap: 10px; align-items: center; }
+
+/* Level display */
+#levelDisplay { color: #fff; font-family: system-ui, sans-serif; font-size: 18px; background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 2px 8px rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+
+/* Stylized Story button */
+#storyButton {
+    appearance: none;
+    -webkit-appearance: none;
+    background: radial-gradient(circle at 30% 20%, #2ec1ff 0%, #1b9edc 35%, #0f6ea8 100%);
+    color: white;
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 6px 14px rgba(16,78,120,0.45), inset 0 -2px 6px rgba(0,0,0,0.25);
+    cursor: pointer;
+    transform: translateY(0);
+    transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+#storyButton:hover { transform: translateY(-3px); filter: brightness(1.05); box-shadow: 0 10px 18px rgba(16,78,120,0.5); }
+#storyButton:active { transform: translateY(0); box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
+#storyButton:focus { outline: 2px solid rgba(46,193,255,0.35); outline-offset: 3px; }

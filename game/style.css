@@ -109,9 +109,12 @@ body {
 #muteButton:focus { outline: none; }
 
 /* Game Over overlay */
-#gameOverOverlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; }
-#gameOverOverlay .overlay-content { background: rgba(8,8,12,0.92); color: #fff; padding: 28px 36px; border-radius: 12px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.04); font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif; }
-#gameOverOverlay h1 { margin: 0 0 6px 0; font-size: 44px; font-weight: 700; letter-spacing: -0.01em; }
-#gameOverOverlay p { margin: 8px 0; color: rgba(255,255,255,0.9); }
-#gameOverOverlay .overlay-button { margin-top: 12px; padding: 10px 18px; font-size: 16px; border-radius: 10px; border: none; background: linear-gradient(180deg,#ff6b6b,#de3b3b); color: #fff; cursor: pointer; }
-#gameOverOverlay .overlay-button:hover { filter: brightness(1.05); transform: translateY(-2px); }
+/* Generic centered overlay (used for both start modal and game over) */
+#gameOverOverlay, #startModal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 100; }
+#startModal[aria-hidden="false"], #gameOverOverlay[aria-hidden="false"] { display: flex; }
+#gameOverOverlay .overlay-content, #startModal .overlay-content { background: rgba(8,8,12,0.92); color: #fff; padding: 22px 28px; border-radius: 12px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.04); font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif; max-width: 680px; margin: 12px; }
+#gameOverOverlay h1, #startModal h1 { margin: 0 0 6px 0; font-size: 36px; font-weight: 700; letter-spacing: -0.01em; }
+#gameOverOverlay p, #startModal p { margin: 8px 0; color: rgba(255,255,255,0.95); }
+#startModal .muted-note { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 6px; }
+#gameOverOverlay .overlay-button, #startModal .overlay-button { margin-top: 12px; padding: 10px 18px; font-size: 16px; border-radius: 10px; border: none; background: linear-gradient(180deg,#3ad976,#06a763); color: #fff; cursor: pointer; }
+#gameOverOverlay .overlay-button:hover, #startModal .overlay-button:hover { filter: brightness(1.05); transform: translateY(-2px); }

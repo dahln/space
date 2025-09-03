@@ -46,8 +46,8 @@ let keys = {
     space: false
 };
 
-// Pause state
-let paused = false;
+// Pause state - start paused until the player reads the mission briefing
+let paused = true;
 
 // Plasma balls
 let plasma = [];
@@ -125,6 +125,43 @@ function _unlockAudioOnce() {
 window.addEventListener('keydown', _unlockAudioOnce, { once: true });
 window.addEventListener('pointerdown', _unlockAudioOnce, { once: true });
 
+// Attach start modal button once DOM ready
+function _attachStartModal() {
+    const startModal = document.getElementById('startModal');
+    const startBtn = document.getElementById('startButton');
+    // show start modal explicitly (for safety in case HTML attributes differ)
+    if (startModal) {
+        startModal.style.display = 'flex';
+        startModal.setAttribute('aria-hidden', 'false');
+    }
+    if (startBtn) {
+        startBtn.addEventListener('click', function () {
+            // Dismiss modal and begin the game loop (unpause)
+            if (startModal) {
+                startModal.style.display = 'none';
+                startModal.setAttribute('aria-hidden', 'true');
+            }
+                // Unlock audio and start music on user gesture
+                try { _unlockAudioOnce(); } catch (e) { }
+                // Ensure audio is unmuted when the player starts
+                try { setMuted(false); } catch (e) { }
+            paused = false;
+        });
+    }
+    // Also allow Enter to start
+    window.addEventListener('keydown', function (e) {
+        if ((e.code === 'Enter' || e.key === 'Enter') && paused && !gameOver) {
+            const sb = document.getElementById('startButton');
+            if (sb) sb.click();
+        }
+    });
+}
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', _attachStartModal);
+} else {
+    _attachStartModal();
+}
+
 // Load player firing sound (single play, no loop)
 const stationSound = new Audio('PlayerSound.flac');
 stationSound.preload = 'auto';
@@ -139,8 +176,8 @@ music.loop = true;
 try { music.play().catch(() => { }); } catch (e) { }
 // Ensure music respects muted state on load
 if (muted) try { music.pause(); } catch (e) { }
-// Apply muted state (updates music playback and UI if present)
-try { setMuted(muted); } catch (e) { }
+// Force audio to be unmuted by default on load; playback may still require a user gesture.
+try { setMuted(false); } catch (e) { }
 
 
 // Load SVG station image and station-related constants (moved up so functions that run at load can use them)
@@ -768,10 +805,8 @@ function checkCollisions() {
                     try { if (!muted) { explosionSound.currentTime = 0; explosionSound.play().catch(() => { }); } } catch (e) { }
                 }
                 stationShots.splice(i, 1);
-                // level down
-                level = Math.max(1, level - 1);
-                applyLevelScaling();
-                updateLevelDisplay();
+                // NOTE: do not change the overall level when the player dies.
+                // Level is controlled by destroying enemy stations only.
                 // Decrement lives on player death and check for game over
                 lives = Math.max(0, lives - 1);
                 updateLivesDisplay();

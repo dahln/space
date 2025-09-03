@@ -61,6 +61,37 @@ const playerSound = new Audio('PlayerSound.flac');
 playerSound.preload = 'auto';
 playerSound.loop = false;
 
+// Some browsers block audio until a user gesture; prime sounds on first gesture so the
+// initial player shots play immediately. This will attempt to play & pause each sound
+// once on the first key or pointer event and then remove the listeners.
+let _audioUnlocked = false;
+function _unlockAudioOnce() {
+    if (_audioUnlocked) return;
+    _audioUnlocked = true;
+    try {
+        const p = playerSound.cloneNode();
+        p.play().then(() => { try { p.pause(); p.currentTime = 0; } catch (e) {} }).catch(() => {});
+    } catch (e) {}
+    try {
+        const s = stationSound.cloneNode();
+        s.play().then(() => { try { s.pause(); s.currentTime = 0; } catch (e) {} }).catch(() => {});
+    } catch (e) {}
+    try {
+        const x = explosionSound.cloneNode();
+        x.play().then(() => { try { x.pause(); x.currentTime = 0; } catch (e) {} }).catch(() => {});
+    } catch (e) {}
+    window.removeEventListener('keydown', _unlockAudioOnce);
+    window.removeEventListener('pointerdown', _unlockAudioOnce);
+}
+window.addEventListener('keydown', _unlockAudioOnce, { once: true });
+window.addEventListener('pointerdown', _unlockAudioOnce, { once: true });
+
+// Load player firing sound (single play, no loop)
+const stationSound = new Audio('PlayerSound.flac');
+stationSound.preload = 'auto';
+stationSound.loop = false;
+
+
 // Load SVG station image and station-related constants (moved up so functions that run at load can use them)
 const stationImg = new Image();
 stationImg.src = 'station.svg';
@@ -438,12 +469,24 @@ function updateStations() {
                     if ((station.shotTimer || 0) <= 0) {
                         const spread = (Math.random() - 0.5) * 0.14;
                         let fireAngle = station.gunAngle + spread;
-                        stationShots.push({
+                        // create shot object then push
+                        const shot = {
                             x: station.x,
                             y: station.y,
                             vx: Math.cos(fireAngle) * stationShotSpeed,
                             vy: Math.sin(fireAngle) * stationShotSpeed
-                        });
+                        };
+                        stationShots.push(shot);
+                        // Only play sound when the spawned shot is within the camera bounds
+                        if (shot.x > camera.x - 50 && shot.x < camera.x + canvas.width + 50 &&
+                            shot.y > camera.y - 50 && shot.y < camera.y + canvas.height + 50) {
+                            try {
+                                const s = stationSound.cloneNode();
+                                s.play().catch(() => {});
+                            } catch (e) {
+                                try { stationSound.currentTime = 0; stationSound.play().catch(() => {}); } catch (e) {}
+                            }
+                        }
                         station.burstRemaining--;
                         // small delay between shots in a burst
                         station.shotTimer = 6 + Math.floor(Math.random() * 4);

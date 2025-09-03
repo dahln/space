@@ -80,6 +80,12 @@ function _unlockAudioOnce() {
         const x = explosionSound.cloneNode();
         x.play().then(() => { try { x.pause(); x.currentTime = 0; } catch (e) {} }).catch(() => {});
     } catch (e) {}
+    // Ensure background music starts on user gesture if it wasn't allowed earlier
+    try {
+        music.play().catch(() => {
+            try { music.currentTime = 0; music.play().catch(() => {}); } catch (e) {}
+        });
+    } catch (e) {}
     window.removeEventListener('keydown', _unlockAudioOnce);
     window.removeEventListener('pointerdown', _unlockAudioOnce);
 }
@@ -90,6 +96,14 @@ window.addEventListener('pointerdown', _unlockAudioOnce, { once: true });
 const stationSound = new Audio('PlayerSound.flac');
 stationSound.preload = 'auto';
 stationSound.loop = false;
+
+// Background music (loop)
+const music = new Audio('Music.mp3');
+music.preload = 'auto';
+music.loop = true;
+// Try to start music immediately; if the browser blocks autoplay this will be
+// handled by the unlock helper below which will call play after a user gesture.
+try { music.play().catch(() => {}); } catch (e) {}
 
 
 // Load SVG station image and station-related constants (moved up so functions that run at load can use them)
@@ -317,6 +331,58 @@ function drawStationShot(shot) {
     ctx.save();
     ctx.translate(shot.x - camera.x, shot.y - camera.y);
     ctx.drawImage(stationShotImg, -stationShotRadius, -stationShotRadius, stationShotRadius * 2, stationShotRadius * 2);
+    ctx.restore();
+}
+
+// Draw an indicator at the edge of the screen pointing toward an offscreen station
+function drawStationIndicator(station) {
+    // screen coords
+    const sx = station.x - camera.x;
+    const sy = station.y - camera.y;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    // vector from screen center to station
+    let dx = sx - cx;
+    let dy = sy - cy;
+    // if somehow at center, skip
+    if (dx === 0 && dy === 0) return;
+    const angle = Math.atan2(dy, dx);
+    // padding from edge so indicator is visible
+    const pad = 18;
+    // compute intersection with screen rect using parametric t from center
+    const halfW = canvas.width / 2;
+    const halfH = canvas.height / 2;
+    const nx = Math.cos(angle);
+    const ny = Math.sin(angle);
+    // compute t for vertical sides
+    let tX = Infinity;
+    if (nx > 0) tX = (halfW - pad) / nx; else if (nx < 0) tX = (-halfW + pad) / nx;
+    let tY = Infinity;
+    if (ny > 0) tY = (halfH - pad) / ny; else if (ny < 0) tY = (-halfH + pad) / ny;
+    // choose smallest positive t
+    let t = Math.min(Math.abs(tX), Math.abs(tY));
+    // indicator position in center-based coords
+    let ix = cx + nx * t;
+    let iy = cy + ny * t;
+
+    // draw arrow pointing outward along angle
+    ctx.save();
+    ctx.translate(ix, iy);
+    ctx.rotate(angle);
+    // arrow triangle pointing right (local +X)
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-8, -8);
+    ctx.lineTo(-8, 8);
+    ctx.closePath();
+    ctx.fillStyle = '#ffcc00';
+    ctx.globalAlpha = 0.95;
+    ctx.fill();
+    // small circle behind arrow
+    ctx.beginPath();
+    ctx.arc(-2, 0, 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fill();
     ctx.restore();
 }
 
@@ -623,8 +689,17 @@ function gameLoop() {
         // keep input edge state consistent while paused
         lastSpace = keys.space;
     }
-    // Draw stations
-    for (let station of stations) drawStation(station);
+    // Draw stations (if offscreen, draw an edge indicator pointing to them)
+    for (let station of stations) {
+        let sx = station.x - camera.x;
+        let sy = station.y - camera.y;
+        let visible = sx >= -50 && sx <= canvas.width + 50 && sy >= -50 && sy <= canvas.height + 50;
+        if (visible) {
+            drawStation(station);
+        } else {
+            drawStationIndicator(station);
+        }
+    }
     // Draw station shots
     for (let shot of stationShots) drawStationShot(shot);
     // Draw plasma

@@ -387,9 +387,9 @@ function drawBackground() {
 
 // Input
 window.addEventListener('keydown', e => {
-    if (e.code === 'ArrowUp') keys.up = true;
-    if (e.code === 'ArrowLeft') keys.left = true;
-    if (e.code === 'ArrowRight') keys.right = true;
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
     if (e.code === 'Space') keys.space = true;
     if (e.code === 'Escape') {
         paused = !paused;
@@ -398,9 +398,9 @@ window.addEventListener('keydown', e => {
     }
 });
 window.addEventListener('keyup', e => {
-    if (e.code === 'ArrowUp') keys.up = false;
-    if (e.code === 'ArrowLeft') keys.left = false;
-    if (e.code === 'ArrowRight') keys.right = false;
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
     if (e.code === 'Space') keys.space = false;
 });
 

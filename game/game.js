@@ -116,7 +116,8 @@ function randomStationPos() {
     return {
         x: ship.x + Math.cos(ang) * distFromPlayer,
         y: ship.y + Math.sin(ang) * distFromPlayer,
-        cooldown: 0,
+    // start with a randomized cooldown so stations don't all fire in sync
+    cooldown: Math.floor(Math.random() * stationFireRate),
     // spawnTimer frames: when >0 the station is phasing in and should not act
     spawnTimer: 60, // 60 frames = ~1 second at 60fps
         // base speed scales with level; add a small random variance
@@ -124,6 +125,16 @@ function randomStationPos() {
         // per-station velocity (used for wandering when player is dead)
         vx: Math.cos(ang) * speed * 0.6,
         vy: Math.sin(ang) * speed * 0.6,
+    // which direction the station's turret/gun is currently facing (radians)
+    gunAngle: ang,
+    // how quickly the station can rotate its turret (0..1, larger is faster)
+    gunTurnRate: 0.18,
+    // tactical state: idle/tracking/burst
+    state: 'idle',
+    // number of shots remaining in the current burst
+    burstRemaining: 0,
+    // frames until next shot within a burst
+    shotTimer: 0,
         // Fire rate decreases (faster firing) with level, clamped
         fireRate: Math.max(20, stationFireRate - Math.floor((level - 1) * 3))
     };
@@ -398,20 +409,61 @@ function updateStations() {
             station.y += station.vy !== undefined ? station.vy : 0;
         }
 
-        station.cooldown--;
+    // Decrement timers
+    station.cooldown = (station.cooldown || 0) - 1;
+    station.shotTimer = (station.shotTimer || 0) - 1;
         // Fire at player only if player is alive and visible on screen
         let shipScreenX = ship.x - camera.x;
         let shipScreenY = ship.y - camera.y;
         let shipVisible = shipScreenX >= -50 && shipScreenX <= canvas.width + 50 && shipScreenY >= -50 && shipScreenY <= canvas.height + 50;
-        if (!shipDestroyed && shipVisible && station.cooldown <= 0) {
-            let angle = Math.atan2(dy, dx);
-            stationShots.push({
-                x: station.x,
-                y: station.y,
-                vx: Math.cos(angle) * stationShotSpeed,
-                vy: Math.sin(angle) * stationShotSpeed
-            });
-            station.cooldown = station.fireRate !== undefined ? station.fireRate : stationFireRate;
+    if (!shipDestroyed && shipVisible) {
+            // Aim turret gradually toward the player
+            let desiredGunAngle = Math.atan2(dy, dx);
+            // normalize angle difference to -PI..PI
+            let diff = desiredGunAngle - (station.gunAngle || 0);
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            // rotate gun toward desired angle with per-station turn speed
+            let gunTurn = station.gunTurnRate !== undefined ? station.gunTurnRate : 0.15;
+            station.gunAngle = (station.gunAngle || 0) + diff * Math.min(1, gunTurn);
+
+            // Tactical firing logic: use bursts and distance gating to avoid constant streams
+            const MAX_FIRE_DIST = 1000; // don't try to shoot from extreme range
+            const AIM_TOLERANCE = 0.22; // radians
+            const jitter = (Math.random() - 0.5) * 0.06;
+            // Only consider firing when within effective range
+            if (dist <= MAX_FIRE_DIST) {
+                // If currently in a burst, fire shots at burst cadence
+                if (station.burstRemaining > 0) {
+                    if ((station.shotTimer || 0) <= 0) {
+                        const spread = (Math.random() - 0.5) * 0.14;
+                        let fireAngle = station.gunAngle + spread;
+                        stationShots.push({
+                            x: station.x,
+                            y: station.y,
+                            vx: Math.cos(fireAngle) * stationShotSpeed,
+                            vy: Math.sin(fireAngle) * stationShotSpeed
+                        });
+                        station.burstRemaining--;
+                        // small delay between shots in a burst
+                        station.shotTimer = 6 + Math.floor(Math.random() * 4);
+                        // if burst finished, set a longer randomized cooldown
+                        if (station.burstRemaining <= 0) {
+                            const base = station.fireRate !== undefined ? station.fireRate : stationFireRate;
+                            station.cooldown = Math.max(12, Math.floor(base * (1.2 + Math.random() * 0.8)));
+                            station.state = 'idle';
+                        }
+                    }
+                } else {
+                    // Not currently bursting: decide whether to start a burst based on aim
+                    if (Math.abs(diff + jitter) <= AIM_TOLERANCE && (station.cooldown || 0) <= 0) {
+                        // begin a burst of 1-3 shots
+                        station.burstRemaining = 1 + Math.floor(Math.random() * 3);
+                        station.shotTimer = 0; // fire immediately on next update
+                        station.state = 'burst';
+                    }
+                }
+            }
         }
     }
 }

@@ -1,7 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+  <defs>
+    <!-- soft glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="1.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- body gradient -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9ff9ff" />
+      <stop offset="45%" stop-color="#4ad4ff" />
+      <stop offset="100%" stop-color="#1a78d6" />
+    </linearGradient>
+
+    <!-- trim gradient -->
+    <linearGradient id="trimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#88f" stop-opacity="0.6"/>
+    </linearGradient>
+
+
+    <!-- cockpit glass -->
+    <radialGradient id="cockpit" cx="40%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="60%" stop-color="#88f" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#00334a" stop-opacity="0.7"/>
+    </radialGradient>
+  </defs>
+
+  <!-- rotate to keep original orientation behavior -->
   <g transform="rotate(90 16 16)">
-    <polygon points="16,2 26,28 16,22 6,28" fill="#0ff" stroke="#fff" stroke-width="2"/>
-    <polygon points="16,6 20,20 16,18 12,20" fill="#044" stroke="#0ff" stroke-width="1"/>
-    <circle cx="16" cy="24" r="2" fill="#fff"/>
+    <!-- main hull -->
+    <polygon points="16,2 27,27 16,20 5,27" fill="url(#bodyGrad)" stroke="url(#trimGrad)" stroke-width="1.6" filter="url(#glow)" />
+
+    <!-- inner panel details -->
+    <polygon points="16,6 21,21 16,19 11,21" fill="rgba(0,0,0,0.12)" />
+    <polygon points="16,7 20.2,20 16,18 11.8,20" fill="url(#cockpit)" stroke="#bfeaff" stroke-width="0.6" />
+
+    <!-- accent lines on hull -->
+    <path d="M9.2,23 L23.8,23" stroke="#9feaff" stroke-opacity="0.18" stroke-linecap="round" stroke-width="1" />
+    <path d="M12,18 L20,18" stroke="#ffffff" stroke-opacity="0.08" stroke-linecap="round" stroke-width="0.8" />
+
+    <!-- engine nozzle glow circle -->
+    <circle cx="16" cy="24" r="2.6" fill="#ffffff" opacity="0.95" />
+    <circle cx="16" cy="24" r="3.8" fill="#6de1ff" opacity="0.18" />
+
+
+    <!-- small decorative thruster vents -->
+    <circle cx="10" cy="24" r="0.6" fill="#c8f6ff" opacity="0.85" />
+    <circle cx="22" cy="24" r="0.6" fill="#c8f6ff" opacity="0.85" />
   </g>
 </svg>

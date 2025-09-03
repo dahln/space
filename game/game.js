@@ -643,20 +643,33 @@ function updateStations() {
         let dist = Math.sqrt(dx * dx + dy * dy);
 
         if (!shipDestroyed) {
-            // Move station toward player with smooth turning
-            if (dist > 1) {
-                // desired velocity to point at player
-                let desiredVx = (dx / dist) * station.speed;
-                let desiredVy = (dy / dist) * station.speed;
-                // per-station turn smoothing (smaller -> slower turning, larger radius)
+            // Orbiting behaviour: stations try to orbit the player at roughly 200px
+            // Initialize per-station orbit parameters if missing
+            if (station.orbitRadius === undefined) {
+                station.orbitRadius = 200 + (Math.random() - 0.5) * 40; // ~200 +/- 20
+                station.orbitAngle = Math.atan2(station.y - ship.y, station.x - ship.x);
+                // angular speed derived from linear speed / radius, with small random variance
+                station.orbitSpeed = (station.speed / Math.max(1, station.orbitRadius)) * (0.9 + Math.random() * 0.6);
+            }
+            // Advance the orbit angle slightly each frame so station moves around the player
+            station.orbitAngle += station.orbitSpeed;
+
+            // Compute the desired orbit position (world coords)
+            const targetX = ship.x + Math.cos(station.orbitAngle) * station.orbitRadius;
+            const targetY = ship.y + Math.sin(station.orbitAngle) * station.orbitRadius;
+            let dxToTarget = targetX - station.x;
+            let dyToTarget = targetY - station.y;
+            let distToTarget = Math.sqrt(dxToTarget * dxToTarget + dyToTarget * dyToTarget);
+
+            // steer smoothly toward the orbit target point
+            if (distToTarget > 0.5) {
+                let desiredVx = (dxToTarget / distToTarget) * station.speed;
+                let desiredVy = (dyToTarget / distToTarget) * station.speed;
                 let turn = station.turnRate !== undefined ? station.turnRate : 0.12;
-                // ensure vx/vy exist
                 station.vx = station.vx !== undefined ? station.vx : desiredVx;
                 station.vy = station.vy !== undefined ? station.vy : desiredVy;
-                // smoothly approach desired velocity
                 station.vx += (desiredVx - station.vx) * turn;
                 station.vy += (desiredVy - station.vy) * turn;
-                // move by current velocity (smoothed)
                 station.x += station.vx;
                 station.y += station.vy;
             }

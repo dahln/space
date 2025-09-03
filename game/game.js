@@ -56,6 +56,10 @@ const plasmaRadius = 4;
 // Load SVG for plasma bolt
 const plasmaImg = new Image();
 plasmaImg.src = 'plasma.svg';
+// Load player firing sound (single play, no loop)
+const playerSound = new Audio('PlayerSound.flac');
+playerSound.preload = 'auto';
+playerSound.loop = false;
 
 // Load SVG station image and station-related constants (moved up so functions that run at load can use them)
 const stationImg = new Image();
@@ -129,6 +133,11 @@ let stations = [randomStationPos()];
 // Load SVG explosion image
 const explosionImg = new Image();
 explosionImg.src = 'explosion.svg';
+
+// Explosion sound (play once per explosion)
+const explosionSound = new Audio('Explosion.wav');
+explosionSound.preload = 'auto';
+explosionSound.loop = false;
 
 let explosions = [];
 // Separate explosion used for the player ship so it can be removed when its animation ends
@@ -326,6 +335,15 @@ function shootPlasma() {
         vx: Math.cos(ship.angle) * plasmaSpeed + ship.vx,
         vy: Math.sin(ship.angle) * plasmaSpeed + ship.vy
     });
+    // Play firing sound once. Use cloneNode or rewind to allow rapid firing.
+    try {
+        // If browser/autoplay policies block play, this will silently fail.
+        // Clone to allow overlapping quick shots without cutting previous sound.
+        const s = playerSound.cloneNode();
+        s.play().catch(() => {});
+    } catch (e) {
+        try { playerSound.currentTime = 0; playerSound.play().catch(() => {}); } catch (e) {}
+    }
 }
 let lastSpace = false;
 
@@ -426,6 +444,13 @@ function checkCollisions() {
                     alpha: 1.0,
                     frame: 0
                 });
+                // Play explosion sound once for station death
+                try {
+                    const s = explosionSound.cloneNode();
+                    s.play().catch(() => {});
+                } catch (e) {
+                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => {}); } catch (e) {}
+                }
                 // Spawn a new station using current level-based scaling
                 let newStation = randomStationPos();
                 newStation.speed = globalStationBaseSpeed + 0.3 + Math.random() * 0.5;
@@ -464,6 +489,13 @@ function checkCollisions() {
                     alpha: 1.0,
                     frame: 0
                 };
+                // Play explosion sound once for player death
+                try {
+                    const s2 = explosionSound.cloneNode();
+                    s2.play().catch(() => {});
+                } catch (e) {
+                    try { explosionSound.currentTime = 0; explosionSound.play().catch(() => {}); } catch (e) {}
+                }
                 stationShots.splice(i, 1);
                 // level down
                 level = Math.max(1, level - 1);
